@@ -195,3 +195,182 @@ do
 }
 
 /*************************************************************************/
+
+/**
+ * Set timeout for recv(), in milliseconds.
+ * @param ms must be > 0.
+ */
+int SetReceiveTimeout(int fd, unsigned long ms)
+{
+    assert(ms > 0);
+
+    Debug("Setting socket timeout to %lu seconds.\n", ms/1000);
+
+/* On windows SO_RCVTIMEO is set by a DWORD indicating the timeout in
+ * milliseconds, on UNIX it's a struct timeval. */
+
+#if !defined(__MINGW32__)
+    struct timeval tv = {
+        .tv_sec = ms / 1000,
+        .tv_usec = (ms % 1000) * 1000
+    };
+    int ret = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#else
+    int ret = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &ms, sizeof(ms));
+#endif
+
+    if (ret != 0)
+    {
+		Debug("Failed to set socket timeout to %lu milliseconds.", ms);
+        return -1;
+    }
+
+    return 0;
+}
+
+/*************************************************************************/
+
+ConnectionInfo *ConnectionInfoNew(void)
+{
+    struct ConnectionInfo *info;
+
+    if ((info = (struct ConnectionInfo *)malloc(sizeof(struct ConnectionInfo))) == NULL)
+    {
+        FatalError("Memory Allocation failed for ConnectionInfoNew()");
+    }
+    info->sd = SOCKET_INVALID;
+
+    return info;
+}
+
+struct Key {
+    RSA *key;
+    Hash *hash;
+};
+
+void KeyDestroy(Key **key)
+{
+    if (!key || !*key)
+    {
+        return;
+    }
+    if ((*key)->key)
+    {
+        RSA_free((*key)->key);
+    }
+    HashDestroy(&(*key)->hash);
+    free (*key);
+    *key = NULL;
+}
+
+void ConnectionInfoDestroy(ConnectionInfo **info)
+{
+    if (!info || !*info)
+    {
+        return;
+    }
+    /* Destroy everything */
+    if ((*info)->ssl)
+    {
+        SSL_free((*info)->ssl);
+    }
+    KeyDestroy(&(*info)->remote_key);
+    free(*info);
+    *info = NULL;
+}
+
+ProtocolVersion ConnectionInfoProtocolVersion(const ConnectionInfo *info)
+{
+    return info ? info->protocol : CF_PROTOCOL_UNDEFINED;
+}
+
+void ConnectionInfoSetProtocolVersion(ConnectionInfo *info, ProtocolVersion version)
+{
+    if (!info)
+    {
+        return;
+    }
+    switch (version)
+    {
+    case CF_PROTOCOL_UNDEFINED:
+    case CF_PROTOCOL_CLASSIC:
+    case CF_PROTOCOL_TLS:
+        info->protocol = version;
+        break;
+    default:
+        break;
+    }
+}
+
+int ConnectionInfoSocket(const ConnectionInfo *info)
+{
+    return info ? info->sd : -1;
+}
+
+void ConnectionInfoSetSocket(ConnectionInfo *info, int s)
+{
+    if (!info)
+    {
+        return;
+    }
+    info->sd = s;
+}
+
+SSL *ConnectionInfoSSL(const ConnectionInfo *info)
+{
+    return info ? info->ssl : NULL;
+}
+
+void ConnectionInfoSetSSL(ConnectionInfo *info, SSL *ssl)
+{
+    if (!info)
+    {
+        return;
+    }
+    info->ssl = ssl;
+}
+
+const Key *ConnectionInfoKey(const ConnectionInfo *info)
+{
+    const Key *key = info ? info->remote_key : NULL;
+    return key;
+}
+
+void ConnectionInfoSetKey(ConnectionInfo *info, Key *key)
+{
+    if (!info)
+    {
+        return;
+    }
+    /* The key can be assigned only once on a session */
+    if (info->remote_key)
+    {
+        return;
+    }
+    if (!key)
+    {
+        return;
+    }
+    info->remote_key = key;
+}
+
+const unsigned char *ConnectionInfoBinaryKeyHash(ConnectionInfo *info, unsigned int *length)
+{
+    if (!info)
+    {
+        return NULL;
+    }
+    Key *connection_key = info->remote_key;
+    unsigned int real_length = 0;
+    const char *binary = 'TODO';
+    if (length)
+    {
+        *length = real_length;
+    }
+    return binary;
+}
+
+const char *ConnectionInfoPrintableKeyHash(ConnectionInfo *info)
+{
+    return info ? 'TODO' : NULL;
+}

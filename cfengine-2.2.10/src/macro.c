@@ -157,7 +157,7 @@ for (i = 0; i < CF_HASHTABLESIZE; i++)
 
 /*******************************************************************/
 
-int Hash(char *name)
+int MacroHash(char *name)
 
 { int i, slot = 0;
 
@@ -245,7 +245,7 @@ if ((sp = malloc(strlen(buffer)+1)) == NULL)
 
 strcpy(sp,buffer);
 
-slot = Hash(name);
+slot = MacroHash(name);
  
 if (ptr->hashtable[slot] != 0)
    {
@@ -269,7 +269,7 @@ if (ptr->hashtable[slot] != 0)
          {
          slot = 0;
          }
-      if (slot == Hash(name))
+      if (slot == MacroHash(name))
          {
          FatalError("AddMacroValue - internal error #1");
          }
@@ -370,7 +370,7 @@ if (ptr == NULL)
 Debug("GetMacroValue(%s,%s): using scope '%s' for variable '%s'\n",
       scope,name,ptr->scope,vname);
  
-i = slot = Hash(vname);
+i = slot = MacroHash(vname);
  
 if (CompareMacro(vname,ptr->hashtable[slot]) != 0)
    {
@@ -416,7 +416,7 @@ void DeleteMacro(char *scope,char *id)
 { int slot,i;
   struct cfObject *ptr;
   
-i = slot = Hash(id);
+i = slot = MacroHash(id);
 ptr = ObjectContext(scope);
  
 if (CompareMacro(id,ptr->hashtable[slot]) != 0)

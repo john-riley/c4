@@ -34,6 +34,8 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <assert.h>
+#include <stdbool.h>
 
 #ifndef _GETOPT_H
 #include "../pub/getopt.h"
@@ -99,6 +101,7 @@ struct utsname
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
 #include <openssl/bn.h>
+#include <openssl/ssl.h>
 #include <errno.h>
 
 #ifdef HAVE_DIRENT_H
@@ -397,6 +400,7 @@ typedef int clockid_t;
 #define CF_SMALL_OFFSET 2
 
 /* digest sizes */
+/*
 #define CF_MD5_LEN 16
 #define CF_SHA_LEN 20
 #define CF_SHA1_LEN 20
@@ -405,9 +409,15 @@ typedef int clockid_t;
 #define CF_SHA256_LEN 32
 #define CF_SHA384_LEN 48
 #define CF_SHA512_LEN 64
+*/
 
 #define CF_DONE 't'
 #define CF_MORE 'm'
+#define SOCKET_INVALID -1
+#define MAXIP4CHARLEN 16
+#define CF_RSA_PROTO_OFFSET 24
+#define CF_PROTO_OFFSET 16
+#define CF_INBAND_OFFSET 8
 
 #ifndef ERESTARTSYS
 # define ERESTARTSYS EINTR
@@ -2279,6 +2289,360 @@ struct Checksum_Value
 #  define FILE_SEPARATOR '/'
 #  define FILE_SEPARATOR_STR "/"
 #endif
+
+/*
+ * HashMethod (unfortunately) needs to be defined in cf3.defs.h. By putting it
+ * separate here we avoid cf3.defs.h pulling the whole OpenSSL includes that
+ * hash.h has.
+ */
+typedef enum
+{
+    HASH_METHOD_MD5,
+    HASH_METHOD_SHA224,
+    HASH_METHOD_SHA256,
+    HASH_METHOD_SHA384,
+    HASH_METHOD_SHA512,
+    HASH_METHOD_SHA1,
+    HASH_METHOD_SHA,
+    HASH_METHOD_BEST,
+    HASH_METHOD_CRYPT,
+    HASH_METHOD_NONE
+} HashMethod;
+typedef enum {
+    CF_MD5_LEN = 16,
+    CF_SHA224_LEN = 28,
+    CF_SHA256_LEN = 32,
+    CF_SHA384_LEN = 48,
+    CF_SHA512_LEN = 64,
+    CF_SHA1_LEN = 20,
+    CF_SHA_LEN = 20,
+    CF_BEST_LEN = 0,
+    CF_CRYPT_LEN = 64,
+    CF_NO_HASH = 0
+} HashSize;
+typedef struct Hash Hash;
+/**
+  @brief Creates a new structure of type Hash.
+  @param data String to hash.
+  @param length Length of the string to hash.
+  @param method Hash method.
+  @return A structure of type Hash or NULL in case of error.
+  */
+Hash *HashNew(const char *data, const unsigned int length, HashMethod method);
+/**
+  @brief Creates a new structure of type Hash.
+  @param descriptor Either file descriptor or socket descriptor.
+  @param method Hash method.
+  @return A structure of type Hash or NULL in case of error.
+  */
+Hash *HashNewFromDescriptor(const int descriptor, HashMethod method);
+/**
+  @brief Creates a new structure of type Hash.
+  @param rsa RSA key to be hashed.
+  @param method Hash method.
+  @return A structure of type Hash or NULL in case of error.
+  */
+Hash *HashNewFromKey(const RSA *rsa, HashMethod method);
+/**
+  @brief Destroys a structure of type Hash.
+  @param hash The structure to be destroyed.
+  */
+void HashDestroy(Hash **hash);
+/**
+  @brief Copy a hash
+  @param origin Hash to be copied.
+  @param destination Hash to be copied to.
+  @return 0 if successful, -1 in any other case.
+  */
+int HashCopy(Hash *origin, Hash **destination);
+/**
+  @brief Checks if two hashes are equal.
+  @param a 1st hash to be compared.
+  @param b 2nd hash to be compared.
+  @return True if both hashes are equal and false in any other case.
+  */
+int HashEqual(const Hash *a, const Hash *b);
+/**
+  @brief Pointer to the raw digest data.
+  @note Notice that this is a binary representation and not '\0' terminated.
+  @param hash Hash structure.
+  @param length Pointer to an unsigned int to hold the length of the data.
+  @return A pointer to the raw digest data.
+  */
+const unsigned  char *HashData(const Hash *hash, unsigned int *length);
+/**
+  @brief Printable hash representation.
+  @param hash Hash structure.
+  @return A pointer to the printable digest representation.
+  */
+const char *HashPrintable(const Hash *hash);
+/**
+  @brief Hash type.
+  @param hash Hash structure
+  @return The hash method used by this hash structure.
+  */
+HashMethod HashType(const Hash *hash);
+/**
+  @brief Hash length in bytes.
+  @param hash Hash structure
+  @return The hash length in bytes.
+  */
+HashSize HashLength(const Hash *hash);
+/**
+  @brief Returns the ID of the hash based on the name
+  @param hash_name Name of the hash.
+  @return Returns the ID of the hash from the name.
+  */
+HashMethod HashIdFromName(const char *hash_name);
+/**
+  @brief Returns the name of the hash based on the ID.
+  @param hash_id Id of the hash.
+  @return Returns the name of the hash.
+  */
+const char *HashNameFromId(HashMethod hash_id);
+/**
+  @brief Size of the hash
+  @param method Hash method
+  @return Returns the size of the hash or 0 in case of error.
+  */
+HashSize HashSizeFromId(HashMethod hash_id);
+
+/*******************************************************************/
+/* Key Management                                                  */
+/*******************************************************************/
+
+/**
+  @brief Structure to simplify the key management.
+  */
+typedef struct Key Key;
+/**
+  @brief Creates a new Key structure.
+  @param key RSA structure
+  @param hash Hash method to use when hashing the key.
+  @return A fully initialized Key structure or NULL in case of error.
+  */
+Key *KeyNew(RSA *rsa, HashMethod method);
+/**
+  @brief Destroys a structure of type Key.
+  @param key Structure to be destroyed.
+  */
+void KeyDestroy(Key **key);
+/**
+  @brief Constant pointer to the key data.
+  @param key Key
+  @return A pointer to the RSA structure.
+  */
+RSA *KeyRSA(const Key *key);
+/**
+  @brief Binary hash of the key
+  @param key Key structure
+  @param length Length of the binary hash
+  @return A pointer to the binary hash or NULL in case of error.
+  */
+const unsigned char *KeyBinaryHash(const Key *key, unsigned int *length);
+/**
+  @brief Printable hash of the key.
+  @param key
+  @return A pointer to the printable hash of the key.
+  */
+const char *KeyPrintableHash(const Key *key);
+/**
+  @brief Method use to hash the key.
+  @param key Structure
+  @return Method used to hash the key.
+  */
+HashMethod KeyHashMethod(const Key *key);
+/**
+  @brief Changes the method used to hash the key.
+  This method triggers a rehashing of the key. This can be an expensive operation.
+  @param key Structure
+  @param hash New hashing mechanism.
+  @return 0 if successful, -1 in case of error.
+  */
+int KeySetHashMethod(Key *key, HashMethod method);
+/**
+  @brief Internal Hash data
+  @param key Structure
+  @return A pointer to the Hash structure or NULL in case of error.
+  */
+const Hash *KeyData(Key *key);
+
+/*******************************************************************/
+/* Connection Information                                          */
+/*******************************************************************/
+
+/**
+ * @NOTE DO NOT USE THIS FUNCTION. The only reason it is non-static is because
+ *       of a separate implementation for windows in Enterprise.
+ */
+bool TryConnect(int sd, unsigned long timeout_ms,
+                const struct sockaddr *sa, socklen_t sa_len);
+/**
+  Available protocol versions. When connection is initialised ProtocolVersion
+  is 0, i.e. undefined. It is after the call to ServerConnection() that
+  protocol version is decided, according to body copy_from and body common
+  control. All protocol numbers are numbered incrementally starting from 1.
+ */
+typedef enum
+{
+    CF_PROTOCOL_UNDEFINED = 0,
+    CF_PROTOCOL_CLASSIC = 1,
+    /* --- Greater versions use TLS as secure communications layer --- */
+    CF_PROTOCOL_TLS = 2
+} ProtocolVersion;
+
+/* We use CF_PROTOCOL_LATEST as the default for new connections. */
+#define CF_PROTOCOL_LATEST CF_PROTOCOL_TLS
+
+static const char * const PROTOCOL_VERSION_STRING[CF_PROTOCOL_LATEST + 1] = {
+    "undefined",
+    "classic",
+    "latest"
+};
+
+typedef struct
+{
+    ProtocolVersion protocol_version : 3;
+    bool            cache_connection : 1;
+    bool            force_ipv4       : 1;
+    bool            trust_server     : 1;
+} ConnectionFlags;
+
+static inline bool ConnectionFlagsEqual(const ConnectionFlags *f1,
+                                        const ConnectionFlags *f2)
+{
+    if (f1->protocol_version == f2->protocol_version &&
+        f1->cache_connection == f2->cache_connection &&
+        f1->force_ipv4 == f2->force_ipv4 &&
+        f1->trust_server == f2->trust_server)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+/**
+  @brief ConnectionInfo Structure and support routines
+  ConnectionInfo is used to abstract the underlying type of connection from our protocol implementation.
+  It can hold both a normal socket connection and a TLS stream.
+ */
+
+/**
+ * @brief Status of the connection, for the connection cache and for
+ *        propagating errors up in function callers.
+ */
+typedef enum
+{
+    CONNECTIONINFO_STATUS_NOT_ESTABLISHED,
+    CONNECTIONINFO_STATUS_ESTABLISHED,
+    /* used to propagate connection errors up in function calls */
+    CONNECTIONINFO_STATUS_BROKEN
+    /* TODO ESTABLISHED==IDLE, BUSY, OFFLINE */
+} ConnectionStatus;
+
+struct ConnectionInfo {
+    ProtocolVersion protocol;
+    ConnectionStatus status;
+    int sd;                           /* Socket descriptor */
+    SSL *ssl;                         /* OpenSSL struct for TLS connections */
+    Key *remote_key;
+    socklen_t ss_len;
+    struct sockaddr_storage ss;
+    bool is_call_collect;       /* Maybe replace with a bitfield later ... */
+};
+
+typedef struct ConnectionInfo ConnectionInfo;
+
+/**
+  @brief Creates a new ConnectionInfo structure.
+  @return A initialized ConnectionInfo structure, needs to be populated.
+  */
+ConnectionInfo *ConnectionInfoNew(void);
+
+/**
+  @brief Destroys a ConnectionInfo structure.
+  @param info Pointer to the ConectionInfo structure to be destroyed.
+  */
+void ConnectionInfoDestroy(ConnectionInfo **info);
+
+/**
+  @brief Protocol Version
+  @param info ConnectionInfo structure
+  @return Returns the protocol version or CF_PROTOCOL_UNDEFINED in case of error.
+  */
+ProtocolVersion ConnectionInfoProtocolVersion(const ConnectionInfo *info);
+
+/**
+  @brief Sets the protocol version
+  Notice that if an invalid protocol version is passed, the value will not be changed.
+  @param info ConnectionInfo structure.
+  @param version New protocol version
+  */
+void ConnectionInfoSetProtocolVersion(ConnectionInfo *info, ProtocolVersion version);
+
+/**
+  @brief Connection socket
+  For practical reasons there is no difference between an invalid socket and an error on this routine.
+  @param info ConnectionInfo structure.
+  @return Returns the connection socket or -1 in case of error.
+  */
+int ConnectionInfoSocket(const ConnectionInfo *info);
+
+/**
+  @brief Sets the connection socket.
+  @param info ConnectionInfo structure.
+  @param s New connection socket.
+  */
+void ConnectionInfoSetSocket(ConnectionInfo *info, int s);
+
+/**
+  @brief SSL structure.
+  @param info ConnectionInfo structure.
+  @return The SSL structure attached to this connection or NULL in case of error.
+  */
+SSL *ConnectionInfoSSL(const ConnectionInfo *info);
+
+/**
+  @brief Sets the SSL structure.
+  @param info ConnectionInfo structure.
+  @param ssl SSL structure to attached to this connection.
+  */
+void ConnectionInfoSetSSL(ConnectionInfo *info, SSL *ssl);
+
+/**
+  @brief RSA key
+  @param info ConnectionInfo structure.
+  @return Returns the RSA key or NULL in case of error.
+  */
+const Key *ConnectionInfoKey(const ConnectionInfo *info);
+
+/**
+  @brief Sets the key for the connection structure.
+  This triggers a calculation of two other fields.
+  @param info ConnectionInfo structure.
+  @param key RSA key.
+  */
+void ConnectionInfoSetKey(ConnectionInfo *info, Key *key);
+
+/**
+  @brief A constant pointer to the binary hash of the key
+  @param info ConnectionInfo structure
+  @param length Length of the hash
+  @return Returns a constant pointer to the binary hash and if length is not NULL the size is stored there.
+  */
+const unsigned char *ConnectionInfoBinaryKeyHash(ConnectionInfo *info, unsigned int *length);
+
+/**
+  @brief A constant pointer to the binary hash of the key
+  @param info ConnectionInfo structure
+  @return Returns a printable representation of the hash. The string is '\0' terminated or NULL in case of failure.
+  */
+const char *ConnectionInfoPrintableKeyHash(ConnectionInfo *info);
+
+extern uint32_t bwlimit_kbytes;
 
 
 /********************************************************************/
