@@ -1137,7 +1137,7 @@ if (NOSPLAY)
 
 time = 0;
 snprintf(ebuff,CF_BUFSIZE,"%s+%s+%d",VFQNAME,VIPADDRESS,getuid());
-hash = Hash(ebuff);
+hash = MacroHash(ebuff);
 
 if (!NOSPLAY)
    {

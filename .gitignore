@@ -1,33 +1,96 @@
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# git mergetool leftovers
 
-# Precompiled Headers
-*.gch
-*.pch
+*.[ch].orig
 
-# Libraries
-*.lib
-*.a
+# intermediate / autogen
+
 *.la
 *.lo
+*.o
+.deps
+.libs
+Makefile
+Makefile.in
+stamp-h1
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+# Created by autogen.sh
+CFVERSION
+aclocal.m4
+autom4te.cache
+compile
+config.guess
+config.log
+config.status
+config.sub
+configure
+depcomp
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+install-sh
+libtool
+ltmain.sh
+m4/libtool.m4
+m4/lt*.m4
+missing
+revision
+ylwrap
+test-driver
+tests/unit/*.log
+tests/load/*.log
 
-# Debug files
-*.dSYM/
-*.su
+configure_flags.env
+
+Makefile.in
+
+# binaries
+/src/cfservd
+
+# autogen
+/src/conf.h
+/src/conf.h.in
+/src/config.post.h
+
+# examples
+/examples/cfengine_stdlib.cf
+
+# gcov/lcov
+*.gcno
+*.gcda
+*.trace
+cfengine-lcov-base.info
+cfengine-lcov.info
+coverage-html/
+
+# links
+
+# tags
+TAGS
+tags
+cscope.*
+
+# vim
+*~
+.*.swp
+.*.swo
+
+# emacs
+*~
+\#*#
+.dir-locals.el
+/contrib/*.elc
+
+# eclipse
+.cproject
+.project
+.settings
+
+# qt-creator
+/core.config
+/core.creator
+/core.creator.user
+/core.files
+/core.includes
+*.autosave
+
+# Mac
+.DS_Store
+*.dSYM

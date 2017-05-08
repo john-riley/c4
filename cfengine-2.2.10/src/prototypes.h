@@ -719,7 +719,7 @@ int ScopeIsMethod  (void);
 void InitHashTable (char **table);
 void BlankHashTable (char *scope);
 void PrintHashTable (char **table);
-int Hash (char *name);
+int MacroHash (char *name);
 int ElfHash (char *name);
 void AddMacroValue (char *scope, char *name, char *value);
 char *GetMacroValue (char *scope,char *name);
@@ -814,7 +814,15 @@ int SendTransaction (int sd, char *buffer,int len, char status);
 int ReceiveTransaction (int sd, char *buffer,int *more);
 int RecvSocketStream (int sd, char *buffer, int toget, int nothing);
 int SendSocketStream (int sd, char *buffer, int toget, int flags);
-
+int SetReceiveTimeout(int fd, unsigned long ms);
+/*
+int SendTransaction(ConnectionInfo *conn_info, const char *buffer, int len, char status);
+int ReceiveTransaction(ConnectionInfo *conn_info, char *buffer, int *more);
+int SetReceiveTimeout(int fd, unsigned long ms);
+int SocketConnect(const char *host, const char *port,
+                  unsigned int connect_timeout, bool force_ipv4,
+                  char *txtaddr, size_t txtaddr_size);
+*/
 
 /* strategies.c */
 

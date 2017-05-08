@@ -89,7 +89,9 @@ libcfengine_la_SOURCES =							\
 	expand-image.c							\
 	expand-editfiles.c						\
 	package.c							\
-	scli.c
+	scli.c                                                          \
+        key.c                                                           \
+        hash.c
 
 #libcfengine_la_LIBADD = -L../pub -lcfpub
 

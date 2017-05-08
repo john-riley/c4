@@ -34,6 +34,7 @@
 #include "cfservd.h"
 #include <db.h>
 #include <sys/time.h>
+#include <netinet/tcp.h>
 
 /*******************************************************************/
 /* GLOBAL VARIABLES                                                */
@@ -52,6 +53,7 @@ int TRIES = 0;
 int MAXTRIES = 5;
 int LOGCONNS = false;
 int LOGENCRYPT = false;
+time_t CONNTIMEOUT = 30;
 
 struct option CFDOPTIONS[] =
    {
@@ -114,6 +116,7 @@ int SafeOpen (char *filename);
 void SafeClose (int fd);
 int WordHere(char *args, char *pos, char *word);
 in_addr_t GetInetAddr (char *host);
+void DisableSendDelays(int sockfd);
 
 /*******************************************************************/
 /* Level 0 : Main                                                  */
@@ -1064,6 +1067,20 @@ if (CFDSTARTTIME < newstat.st_mtime)
 }
 
 /*********************************************************************/
+
+void DisableSendDelays(int sockfd)
+{
+    int yes = 1;
+
+    if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (void *) &yes, sizeof(yes)) == -1)
+    {
+		CfLog(cfinform,"Unable to disable Nagle algorithm, expect performance problems. (setsockopt(TCP_NODELAY)","setsockopt");
+    }
+}
+
+/*********************************************************************/
+
+/*********************************************************************/
 /* Level 4                                                           */
 /*********************************************************************/
 
@@ -1129,9 +1146,15 @@ if (ACTIVE_THREADS >= CFD_MAXPROCESSES)
    }
 
 TRIES = 0;   /* As long as there is activity, we're not stuck */
- 
+
 #endif
- 
+
+DisableSendDelays(conn->sd_reply);
+
+/* 20 times the connect() timeout should be enough to avoid MD5
+ * computation timeouts on big files on old slow Solaris 8 machines. */
+SetReceiveTimeout(conn->sd_reply, CONNTIMEOUT * 20 * 1000);
+
 while (BusyWithConnection(conn))
    {
    }

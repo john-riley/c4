@@ -10,6 +10,9 @@ libcfpub_a_SOURCES =							\
 	full-write.c							\
 	regex.c								\
 	getloadavg.c							\
+	alloc.c								\
+	strlcpy.c							\
+	memdup.c							\
 	snprintf.c
 
 libcfpub_a_CFLAGS = $(AM_CFLAGS) -fPIC
@@ -18,6 +21,12 @@ EXTRA_DIST =								\
 	getopt.h							\
 	global.h							\
 	gnuregex.h							\
+	snprintf.h							\
+	alloc.h								\
+	bool.h								\
+	deprecated.h							\
+	compiler.h							\
+	platform.h							\
 	snprintf.h							\
 	LICENSE.txt
 
@@ -30,13 +39,13 @@ MOSTLYCLEANFILES = *~
 # Get everything removed down to where rebuilding requires:
 # "make; make install"
 # 
-CLEANFILES =
+CLEANFILES = *.gcno *.gcda
 
 #
 # Get everything removed down to where rebuilding requires:
 # "configure; make; make install"
 #
-DISTCLEANFILES = 
+DISTCLEANFILES = *~ *.orig *.rej
 
 #
 # Get everything removed down to where rebuilding requires:
