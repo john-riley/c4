@@ -1,0 +1,4028 @@
+This is cfengine-Reference.info, produced by makeinfo version 4.12 from
+cfengine-Reference.texinfo.
+
+INFO-DIR-SECTION System Utilities
+START-INFO-DIR-ENTRY
+* cfengine Reference: (cfengine-Reference.info).
+                        Cfengine is a language based tool specifically
+                        designed for configuring and maintaining BSD
+                        and System-5-like operating systems attached
+                        to a TCP/IP network.
+END-INFO-DIR-ENTRY
+
+
+File: cfengine-Reference.info,  Node: packages,  Next: rename,  Prev: processes,  Up: Cfagent reference
+
+4.32 Packages
+=============
+
+The packages action allows you to check for the existance of packages
+on the system, as determined by the package database you select.
+Optionally, if a package install command was specified, the package can
+be installed if it is not there.
+
+   This operation is set up such that it tries not to make assumptions
+about the package manager in use.  For example, it should be possible
+to use RPM on a Solaris box.
+
+   The syntax summary is:
+
+
+     packages:
+
+        CLASS::
+
+           PACKAGE-NAME
+                             pkgmgr=none/RPM/DPKG/SUN/AIX/PORTAGE/FREEBSD
+                             cmp=eq/LT/GT/GE/LE/NE
+                             version=VERSION-STRING
+                             define=CLASS-LIST(,:.)
+                             elsedefine=CLASS-LIST(,:.)
+                             action=none/INSTALL/REMOVE/UPGRADE/FIX
+
+                             ifelapsed=MINS
+                             expireafter=MINS
+
+                             audit=TRUE/ON/FALSE/OFF
+                             inform=TRUE/ON/FALSE/OFF
+
+     EXAMPLES:
+     packages:
+       # install newpackage 1.10 if newpackage 1.0 or greater isn't installed
+       newpackage-1.10 action=install
+                     cmp=ge
+                     version=1.0
+
+       # upgrade any installed versions of compromised to at least 1.2
+       compromised-1.2 action=upgrade
+                     version=1.2
+                     cmp=le
+
+       # Make sure that version 1.2 is installed
+       compromised-1.2 action=fix
+                     version=1.2
+                     cmp=le
+
+       # remove any version of useless
+       useless action=remove
+                     version=0.1
+                     cmp=ge
+
+`action'
+     Determines the action taken if the comparison matches.
+
+        * `install' Install this package if the version comparison does
+          not match.
+
+        * `upgrade' Upgrade this package if the version comparison does
+          match.
+
+        * `fix' Install or Upgrade this package if the version
+          comparison does match.
+
+        * `remove' Uninstall this package if the version comparison
+          does match.
+
+`cmp'
+     Determines how the version of the installed package will be
+     compared to that specified by the `version' attribute.  Possible
+     values include:
+
+        * `eq' The version installed must be equal to `version'
+
+        * `lt' The version installed must be less than `version'
+
+        * `gt' The version installed must be greater than `version'
+
+        * `le' The version installed must be less than or equal to
+          `version'
+
+        * `ge' The version installed must be creater than or equal to
+          `version'
+
+        * `ne' The version installed must not be equal to `version'
+
+     The default value for this attribute is `eq'.
+
+     Note that `cmp' is used differently for install versus upgrade,
+     fix and remove.  The action is performed when false for install,
+     but when true for upgrade, fix or remove.
+
+`version'
+     Specifies the package manager specific version string to match.  If
+     this is not specified, then any version matches, and the value of
+     the `cmp' attribute is ignored.  See the allowed values of
+     `pkgmgr' below for an explation of how each package manager will
+     interpret this.
+
+`pkgmgr'
+     Selects the package manager database to query.  This defaults to
+     either the value of the `DefaultPkgMgr' variable, or if that is
+     not set, there is no default.  In that case, no checking will be
+     done unless `pkgmgr' is set explicitly for each package.  Note
+     that the default value '`none'' listed is merely a pseudo-value,
+     and cannot actually be used, since it would make no sense anyway.
+
+     Each package manager will interpret the `version' and `cmp'
+     attributes in its own way.  For example, when you use
+     `pkgmgr=rpm', the comparison will be done with the same rules that
+     RPM use if it were not being run through cfengine.  Freebsd
+     actually invokes the standard system utility to do the comparisons
+     for it, etc.
+
+     Currently, the following package managers are supported:
+
+    `rpm'
+          This uses the rpm command, which cfengine expects to find as
+          `/bin/rpm' to query the machine's RPM database.  The `rpm'
+          check assumes that you are using a version of RPM that
+          understands the concept of an epoch, which means that you
+          will want to use RPM version 3.0.3 or greater.  Versions as
+          early as 2.5.6 may work, but it is doubtful.  If multiple
+          packages of the same name are installed (i.e. kernel), then
+          the check considers the package to be installed at the
+          specified version if at least one of them satisifies the
+          criteria specified by `cmp' and `version'.
+
+          The format of a RPM version string is:
+          [epoch:]version[-release].  The version[-release] can be seen
+          by simply running: `rpm -q <pkg>'.  In order to see the
+          epoch, you must use a query format, like this: `rpm -q
+          --queryformat "%{EPOCH}:%{VERSION}-%{RELEASE}\n" <pkg>'.
+          Most packages do not have an epoch, and will print `(none)'
+          in the epoch space.  In recent incarnations of RPM, the
+          absense of an epoch is interpreted as 0.  This is also how
+          cfengine will interpret it.  _Be careful with this.  If the
+          installed version of a package has an epoch greater than 0,
+          and you do not specify the epoch, unexpected results may
+          happen._  For example, if you have a package installed,
+          `foo-1:2.0-1', and you specify a `version=3.0-1' and a
+          `cmp=gt', the check will be true, because the installed
+          version has an epoch of 1, and you did not specify an epoch,
+          which implies you wanted an epoch of 0.  The rule here is
+          basically to always check the epoch of the package you really
+          want, and specify it.  It may take a few extra extra seconds
+          to check, but it will save you lots of headaches later.
+
+    `portage'
+          This uses the emerge command to install packages on a Gentoo
+          Linux system.  The `portage' Python module is used to query
+          the system and find installed packages.  The package_name and
+          version support any package that conforms to the Gentoo
+          package naming specification
+          `http://www.gentoo.org/proj/en/devrel/handbook/handbook.xml?part=2&chap=1#doc_chap2_sect2',
+          and even most of those in the Portage tree that do not.
+          Because Gentoo package atoms are flexible, you can use the
+          name of the package, along with a version and the cmp
+          cfengine logic, or you can put the comparison operator and
+          version in the package_name field and leave out the cmp
+          operator.  Because cfengine builds the install string out of
+          the package name, and ignores the version you were comparing
+          against, using a package atom with a version is the only way
+          to have a specific version emerged.
+
+
+                packages:
+
+                 any::
+
+                  # if the version of tar is less than 1.16-r2,
+                  # then the *latest* version of tar will be installed:
+
+                  app-arch/tar cmp=ge version=1.16-r2 action=install
+
+                  # This is equivalent, but uses the package atom to
+                  # define the version comparison:
+
+                  >=app-arch/tar-1.16-r2 action=install
+
+    `dpkg'
+          Please document me!
+
+    `sun'
+          Please document me!
+
+    `freebsd'
+          FreeBSD has fully working install/upgrade/delete management
+          for packages.  You can either get the latest version from a
+          package repository, or define the explicit version to install.
+
+
+               # install new package from FreeBSD ports tree
+               control:
+                 DefaultPkgMgr = ( freebsd )
+                 FreeBSDInstallCommand = ( "/usr/sbin/pkg_add -r %s" )
+
+               packages:
+                 bsdsar action=install
+
+               # install a specific version from a local repository
+               control:
+                 DefaultPkgMgr = ( freebsd )
+                 FreeBSDInstallCommand = ( "/usr/sbin/pkg_add http://server/path/%s" )
+
+               packages:
+                 bsdsar-1.10_2 action=install
+
+          Note that specifying the version of the package that is part
+          of the freebsd package filename is required if not using "-r"
+          mode.  It does not use this version for comparison, just for
+          the package filename to install.
+
+          You can also backgrade if you know that 1.2 is bad for
+          instance.
+
+               packages:
+                 bsdsar-1.10_2 action=upgrade
+                               version=1.10_2
+                               cmp=gt
+
+          The only gotcha about FreeBSD installation is trying to
+          specify the package source location.  Due to the unfortunate
+          fact that freebsd doesn't provide a command line option -
+          only an environment variable - for specifying the source
+          repository, you have a few options.
+
+          Get it from the main FreeBSD binary package home:
+
+                 FreeBSDInstallCommand = ( "/usr/sbin/pkg_add -r %s" )
+
+          Get it from a mounted directory or http server
+
+                 FreeBSDInstallCommand = ( "/usr/sbin/pkg_add /nfs/packages/%s" )
+                 FreeBSDInstallCommand = ( "/usr/sbin/pkg_add http://server/path/%s" )
+
+          Or write a script that tells pkg_add where to find it, like
+          so:
+
+                 FreeBSDInstallCommand = ( "/var/cfengine/packages/pkginstall %s" )
+          such as
+
+               #!/bin/sh
+               PACKAGESITE=http://my.local.repository/packages/
+               export PACKAGESITE
+               /usr/sbin/pkg_add -r $*
+
+`define'
+     Specifies the list of classes to define if the specified
+     package/version was installed (prior to actions taken if any)
+
+`elsedefine'
+     Specifies the list of classes to define if the specified
+     package/version was not installed (prior to actions taken if any)
+
+`action'
+     Specifies whether the packages should actually do anything about
+     the situation it finds.  The default for this is to do nothing.
+
+     For `install', the action will be taken if the comparison returns
+     false.
+
+     For `upgrade' and `remove', the action will be taken if the
+     comparison returns false.
+
+     The classes in `define' and `elsedefine' will always be defined,
+     as applicable, regardless of the action specified.
+
+    `install'
+          Installs the package using the command associated with the
+          selected package manager, if it is not currently on the
+          system at the requested version, as follows:
+
+             * RPM - RPMInstallCommand
+
+             * DPKG - DPKGInstallCommand
+
+             * SUN - SUNInstallCommand
+
+             * Gentoo - PortageInstallCommand
+
+             * FreeBSD - FreeBSDInstallCommand
+
+          Each variable is of the format:
+
+               FOOInstallCommand = ( "/usr/bin/foo --args %s --more-args" )
+
+          The --args are of course optional.  For FreeBSD and Sun, the
+          %s is replaced with the package name that was checked, and
+          found to not be installed.  For all other package managers
+          the %s can have a space separated list of package names.
+
+    `upgrade'
+          Upgrades the package using the commands associated with the
+          selected package manager, first removal of the old package
+          then installation of the new package.  Note that on some
+          package managers this action is unnecessary because the
+          package manager will "do the right thing" when told to
+          install a newer version.
+
+             * FreeBSD - FreeBSDRemoveCommand followed by
+               FreeBSDInstallCommand Portage - Upgrade is generally not
+               necessary since emerge will do the upgrade for you.
+
+    `remove'
+          Removes the package(s) using the command associated with the
+          selected package manager, if a matching package is found on
+          the system, as follows:
+
+               FOORemoveCommand = ( "/usr/bin/foo --args %s --more-args" )
+
+          The --args are of course optional.  The %s is replaced with a
+          space-separated list of the package names that were checked,
+          and found to be installed.
+
+NOTE: classes are defined according to the result of the check, not any
+action performed as a result of that check.  In otherwords, if for
+example you have a situation where a package is not installed, and the
+action= is set to install, the classes in `elsedefine' will be defined
+regardless of whether or not the install was successful.  Assuming the
+package installed, the next run of cfagent will pick up that fact.
+This has to be done since the package installs are batched, so there is
+no reliable way to know if a given package was installed successfully.
+
+Examples:
+
+     packages:
+
+         redhat_8_0::
+             m4  version=0:1.4.1-11 cmp=eq pkgmgr=rpm elsedefine=needsm4
+
+In this first example, we are looking for the m4 package at exactly
+version 0:1.4.1-11.  The installed m4 package on a redhat_8_0 box has
+no epoch which is the same as zero.  Specifying it will keep you out of
+trouble.  This check will cause `needsm4' to be defined if the exact
+version of m4 specified is not installed.
+
+     control:
+         redhat:;
+             DefaultPkgMgr = ( rpm )
+
+         gentoo::
+             DefaultPkgMgr = ( portage )
+
+     packages:
+         redhat_8_0::
+             make version=0:4.5-2 cmp=ge define=hasmake elsedefine=needsmake
+
+In the second example, we use the DefaultPkgMgr variable to set the
+default for the `pkgmgr' attribute to `rpm'.  The actual version of make
+installed on recent redhat_8_0 machine is 1:3.79.1-14.  Since the check
+is for greater than or equal to this version, the hasmake class will be
+defined.
+
+     control:
+         redhat:;
+             DefaultPkgMgr = ( rpm )
+             RPMInstallCommand = ( "/usr/sbin/up2date %s" )
+
+     packages:
+         redhat_8_0::
+             make define=hasmake elsedefine=needsmake action=install
+
+This example is much like the second example, except that if the
+package is not installed, cfengine will attempt to install it using the
+command in RPMInstallCommand, replacing the %s with the package name,
+`make'.  If there were multiple packages specified in this way, the
+package installation would occur at the end of the package checks, and
+one command would be run, with %s replaced with a list of all package
+names.  In this example we chose not to use a version spec, but it is
+allowed, and as always, is optional.
+
+NOTE here that if make was not installed when the check is made,
+`needsmake' is defined, regardless of whether or not the install
+succeeds.  If the install is successful, the next cfagent run will
+define `hasmake'.
+
+
+File: cfengine-Reference.info,  Node: rename,  Next: required,  Prev: packages,  Up: Cfagent reference
+
+4.33 rename
+===========
+
+As of version 2.1.0 rename is a synonym for disable, *Note disable::.
+
+
+File: cfengine-Reference.info,  Node: required,  Next: resolve,  Prev: rename,  Up: Cfagent reference
+
+4.34 required
+=============
+
+This is a synonym for disks, *Note disks::.
+
+
+File: cfengine-Reference.info,  Node: resolve,  Next: scli,  Prev: required,  Up: Cfagent reference
+
+4.35 resolve
+============
+
+The file `/etc/resolv.conf' specifies the default nameserver for each
+host, as well as the local domain name.  This file can also contain
+other information, but these are the only two things cfengine currently
+cares about.  In specifying nameservers you should use the dotted
+numerical form of the IP addresses since your system may not understand
+the text form if it is not correctly configured.  You may list as many
+nameservers as you wish, with the default server at the top of the list.
+The resolver normally ignores entries if you add more than three.  The
+statement:
+
+
+     resolve:
+
+       mygroup::
+
+          129.240.22.35
+          129.240.22.222
+          129.240.2.3
+
+declares a list of nameservers for hosts in the group or class
+`mygroup'.  When you add the `resolve' command to the `actionsequence',
+this declaration together with the `domain' variable (set here to
+`uio.no') results in a `/etc/resolv.conf' file of the form:
+
+
+     domain uio.no
+     nameserver 129.240.22.35
+     nameserver 129.240.22.222
+     nameserver 129.240.2.3
+
+Note that the `resolve' action does not delete anything from the file
+`/etc/resolv.conf' unless the `EmptyResolvConf' variable is set to
+'true' .  It adds nameservers which do not previously exist and
+reorders the lines of servers which do exist.
+
+   As of version 1.3.11, you may use a quoted string to add
+non-nameserver lines to this file. For example:
+
+
+     resolve:
+
+       mygroup::
+
+          129.240.22.35
+          129.240.22.222
+          "# Comment line"
+          "order bind, files"
+   If the line begins with a non-numeric character, the word
+`nameserver' is not added to the line.
+
+
+File: cfengine-Reference.info,  Node: scli,  Next: shellcommands,  Prev: resolve,  Up: Cfagent reference
+
+4.36 scli
+=========
+
+SCLI is an SNMP command line interpreter written by Ju"rgen
+Scho"nwaelder of the Jacobs University of Bremen. It is a command
+interpreter used to simplify the interaction with SNMP enabled devices.
+SNMP is a stateless, UDP based network protocol for communicating with
+supporting hardware. The SNMP model does not fit very comfortably with
+the cfengine "responsibility for self" paradigm, but at some level SCLI
+can be viewed as just another form of interpreted script. SCLI adds a
+level of user friendliness and stateful behaviour to SNMP through its
+shell-like interface. This turns out to be both a help and a hindrance
+to cfagent.
+
+   The intermingling of stateful and stateless processes in the dialogue
+between cfengine and scli makes their integration non-trivial. Several
+compromises have to be made to aid usability and these could lead to
+difficulties in the practical use of the tools later.
+
+   The scli section of a cfagent configuration is a single script. The
+lines are passed as a collective object to the scli interpreter, not
+line-by-line as in other cases.
+
+   The basic approach is to open a pipe for the reading and writing of
+dialogue with the interpreter. There are some limitations to Unix pipes
+however, in particular input and output are separated which makes
+per-transaction error control essentially impossible. A work-around for
+this has been used in the test phase.
+
+   The cfengine interface is a special case of the `shellcommands'
+interface, passing commands to SCLI instead of to `/bin/sh'.  The
+command options are the same as those below for `shellcommands'.
+
+     shellcommands:
+
+       CLASS::
+
+         "SCLI-STRING"  SHELLCOMMAND OPTIONS
+         "SCLI-STRING"
+
+   This integration was funded by the IST-EMANICS Network of Excellence
+in Network and Service Management, of which Oslo University College and
+the Jacobs University of Bremen are members.
+
+
+File: cfengine-Reference.info,  Node: shellcommands,  Next: strategies,  Prev: scli,  Up: Cfagent reference
+
+4.37 shellcommands
+==================
+
+Cfengine focuses on fairly simple-minded tasks in order to be as general
+as possible.  In many cases, you will therefore want to write a script
+to do something special on your system.  You can still take advantage of
+the classes you have defined by executing these scripts or shell
+commands from this section.
+
+   The syntax is simply to quote the command you wish to be executed.
+
+     shellcommands:
+
+       CLASS::
+
+         "COMMAND-STRING"
+
+               timeout=SECONDS
+               useshell=true/FALSE
+               umask=OCTAL NUMBER
+               owner=UID
+               group=GID
+
+               background=false/TRUE
+               chdir=DIRECTORY
+               chroot=DIRECTORY
+               preview=TRUE/false
+               inform=false/TRUE
+               audit=TRUE/ON/FALSE/OFF
+
+               noabspath=false/TRUE
+
+               ifelapsed=MINS
+               expireafter=MINS
+
+               define=CLASS-LIST
+               elsedefine=CLASS-LIST
+
+
+`COMMAND-STRING'
+     This is the command to be executed.
+
+`TIMEOUT'
+     If you set the optional TIMEOUT parameter, then cfengine will
+     abort the specified shellcommand if it exceeds the given
+     time-limit (specified in seconds).  This can be useful for
+     avoiding hung programs caused by hung network connections, etc.
+     Timeouts are generated by alarm interrupts within a single agent.
+     This can be contrasted with `expireafter' in which a second agent
+     is required to interrupt a command.  
+
+`USESHELL'
+     Some program lines, especially those that do not use any
+     shell-specific capabilities (such as redirection and wildcard
+     expansion) can be run without the shell.  This is typically more
+     secure, as the command line is not altered by the user or by the
+     system.  It is also faster, as the shell does not have to be
+     spawned in order to run the given command.  Use the USESHELL
+     parameter to tell cfengine to not use the shell to run this
+     shellcommand.
+
+`UMASK'
+     The umask affects the permissions given to a file created by this
+     shellcommand.  The umask specifies, specifically, the permissions
+     that are to be taken away.
+
+`OWNER'
+
+`GROUP'
+     The user and group ID's of the process can be set (using the OWNER
+     and GROUP parameters respectively) to restrict the permissions of
+     the shellcommand. This can only be done if cfengine is executed by
+     root; otherwise, the user and group will remain that of the the
+     user who started cfengine.
+
+`BACKGROUND'
+     Run this command in the background if this is specified true.
+     This will make cfengine run faster, but no tests can be made (at
+     least directly) on the results of this command. Also when jobs are
+     backgrounded, the output in verbose mode can be somewhat erratic
+     due to the unsychnronized streams.
+
+`CHDIR'
+     Change to the specified directory before running this command.
+
+`CHROOT'
+     The `chroot' option changes the process root directory of the
+     command, creating a `sandbox' which the process cannot escape
+     from. Best used together with a change of owner (using the `owner'
+     parameter), since a root process can break out of a chrooted
+     environment.
+
+`PREVIEW'
+     The `preview' option means that the shellcommand will also be
+     executed during the `--dry-run' (`-n') options. This allows
+     cfengine to be more aware of the results of scripts which define
+     classes. This option should be used with care.
+
+     Scripts should conform to the protocol of not executing
+     unnecessary commands when the classes `opt_dry_run' is defined.  
+
+`INFORM'
+
+`NOABSPATH'
+     Normally, cfagent requires the command string to begin with a `/'
+     since it is dangerous to rely on an implicit path. However,
+     sometimes it it is appropriate to override this.  This behavior
+     can be overridden using the NOABSPATH parameter.  
+
+`IFELAPSED'
+     The shellcommand specified will not be run unless the specified
+     amount of time (in minutes) has elapsed since the command was
+     previously run.
+
+`EXPIREAFTER'
+     If this amount of time (in minutes) has elapsed since the command
+     started, then the command is aborted by a second agent that is
+     patrolling the system.
+
+`DEFINE'
+     Define the specified classes if the command finishes successfully.
+
+`ELSEDEFINE'
+     Define the specified classes if the command does not finish
+     successfully.
+
+
+   Variable substitution works within the strings.  Here are some
+examples.
+
+
+     shellcommands:
+
+        sun4::
+
+            "/usr/lib/find/updatedb"
+
+        AllHomeServers.Sunday::
+
+            "/dir/noseyparker /$(site)/$(host)/u1 $(sysadm) nomail"
+
+        AllBinaryServers.sun4.Saturday::
+
+           "/usr/etc/catman -w -M /usr/local/man"
+           "/usr/etc/catman -w -M /usr/local/X11R5/man"
+           "/usr/etc/catman -w -M /usr/man"
+           "/usr/etc/catman -w -M /usr/local/gnu/man"
+
+If you need to write more advanced scripts which make detailed use of
+the classes defined by cfengine, use the `$(allclasses)' variable to
+send a complete list of classes to your script.  An enviornment
+variable, CFALLCLASSES, is set and is in the format
+
+
+     CFALLCLASSES=class1:class2:class3...
+
+This variable is kept up-to-date at any given time with only the classes
+which are defined.  The command line option `-u' or `--use-env' can be
+used to define an environment variable which will be inherited by all
+scripts and contains the same information.  This is not the standard
+approach, since some systems cannot cope with this rapid change of
+environment and generate a Bus Error.  
+
+   Commands can be iterated over variable lists, provided there is at
+least one space between each variable. For example:
+
+
+     control:
+
+           actionsequence =
+              (
+              shellcommands
+              )
+
+      var1 = ( a:b:c )
+      var2 = ( x:y:z )
+
+     shellcommands:
+
+        "/bin/echo $(var1) $(var2)"
+   This iterates over all values of the list variables. *Note Iteration
+over lists::.  If you are iterating over a list, the time limit (in
+seconds) which is specified in the TIMEOUT parameter applies to each
+separate iteration, not to the sum total of all the iterations.  
+
+
+File: cfengine-Reference.info,  Node: strategies,  Next: tidy,  Prev: shellcommands,  Up: Cfagent reference
+
+4.38 strategies
+===============
+
+Strategies (introduced in cfengine version 2.0) are a way of picking
+from a set of classes randomly.  Each class is a possible course of
+action.  A strategy group (of classes) is defined as follows:
+
+     strategies:
+
+       { my_strategy_alias
+
+       class1: "2"
+       class2: "3"
+       class3: "$(value)"
+       class4: "6"
+       class5: "1"
+       }
+
+     tidy:
+
+      class1.Hr00::
+
+        /home pat=*.mp3 age=0
+
+      class2.Hr02::
+
+        /home pat=*.wav age=0
+
+   The idea here is to randomly pick from a selected set of classes.
+
+   Specifically, each strategy is a class which is defined with a
+certain probability. An integer weight is provided in quotes to
+represent the probability weight of the associated class. When cfengine
+is run, it randomly picks one of the classes from each strategy.  Using
+strategies, you can choose different ways of configuring or protecting
+a system, at random, thus confounding environmental attempts to break
+into the system.
+
+   Note that each strategy has a formal name (such as
+`my_strategy_alias' in the example), but this name is not used to
+attach a strategy to an action the same way that filters or ACLs are.
+
+
+File: cfengine-Reference.info,  Node: tidy,  Next: unmount,  Prev: strategies,  Up: Cfagent reference
+
+4.39 tidy
+=========
+
+The tidy function is used to delete (remove permanently) unwanted files
+from a system.  It is useful for tidying up in `/tmp' or cleaning out
+`core' files from users' home directories.  The form of an entry is:
+
+     tidy:
+
+       CLASS::
+
+           /DIRECTORY
+                            pattern/include=WILDCARD
+
+                            recurse=NUMBER/INF
+                            age=DAYS
+                            size=NUMBER/EMPTY
+                            type=CTIME/MTIME/atime
+                            dirlinks=KEEP/TIDY/DELETE
+                            rmdirs=[TRUE/ALL]/[FALSE/NONE]/SUB
+                            links=stop/keep/TRAVERSE/TIDY
+                            compress=TRUE/ON/false/off
+
+                            define=CLASSLIST
+                            elsedefine=CLASSLIST
+
+                            syslog=TRUE/ON/FALSE/OFF
+                            inform=TRUE/ON/FALSE/OFF
+                            audit=TRUE/ON/FALSE/OFF
+
+                            ifelapsed=MINS
+                            expireafter=MINS
+
+                            filter=FILTER ALIAS
+                            ignore=PATTERN
+                            exclude=PATTERN
+                            xdev=TRUE/ON/false/off
+
+Note that, each of the options below can be written in either upper or
+lower case and abbreviated by any unique abbreviation.  
+
+`/DIRECTORY'
+     This is the directory name to directories which mark the start of a
+     search for files matching certain wildcards.  The wildcard `home'
+     may be used instead of an explicit directory, in which case
+     cfengine iterates over all home directories.  It is compulsory to
+     specify a directory.
+
+`pattern=WILDCARD or include=WILDCARD'
+     A wildcard or filename to match the files you wish to be deleted.
+     The pattern may contain the special symbols `?' which matches a
+     single character and `*' which matches any number of characters as
+     in the shell. These two options are synonymous, as of version
+     2.0.x.  Note that, this pattern is processed as a filter before
+     any other filter and, for safety reasons, it defaults to nothing.
+     Thus, if you want to use a filter to select the files, you should
+     set `pattern=*', else the filter will not see any files at all.  
+
+`exclude=WILDCARD'
+     This does not work for the home directive; use the global ignore
+     list for this.
+
+`ignore=WILDCARD'
+     This does not work for the home directive; use the global ignore
+     list for this.
+
+`recurse=NUMBER/INF'
+     This specifier tells cfengine whether or not to recurse into
+     subdirectories.  If the value is zero, only the named file or
+     directory is affected.  If the value is 1, it will open at most
+     one level of subdirectory and affect the files within this scope.
+     If the value is `inf' then cfengine opens all subdirectories and
+     files beginning from the specified filename. *Note Recursion::.
+
+`age=DAYS'
+     The age of a file in days represents a minimum _access_ time
+     elapsed before the file will be deleted.  In other word a file
+     will be deleted if it has not been accessed for DAYS days.
+
+`links=STOP/TRAVERSE/TIDY'
+     Normally cfengine does not descend into subdirectories which are
+     pointed to by symbolic links.  If you wish to force it to do so
+     (without using the `-l' command line option) you may give this
+     option the value `true', or `traverse', or `follow'.  To specify no
+     recursion you set the value `false' or `stop'.  Note that the
+     value set here in the cfengine program _always overrides_ the
+     value set by the `-l' command line option, so you can protect
+     certain actions from this command line option by specifying a
+     negative value here.  If you specify no value here, the behaviour
+     is determined by what you specify on the command line.
+
+     The value `links=tidy' has the same effect as the `-L' command
+     line option except that here it may be specified per item rather
+     than globally.  Setting this value causes links which point to
+     non-existent files to be deleted. This feature will not work on
+     commands with the `home' wildcard feature.  If you want to clean
+     up old links you should either user a `files' command or the
+     command line option which sets the tidy feature globally.  
+
+`size=>NUMBER/EMPTY'
+     Old syntax `size=NUMBER/EMPTY'.  The value of this parameter
+     decides the size of files to be deleted.  Files larger than this
+     value will be deleted if they also are older than the time
+     specified in `age'. The default size is zero so that any file
+     which gets matched by another critereon is deleted. However, if you
+     want to single out only totally empty files, the `empty' may be
+     used.  With this option only empty files, nevery files with
+     anything in them,  will be deleted, if older than `age'. By
+     default, the filesizes are in kilobytes, but kilobytes and
+     megabytes may also be specified by appending b,k,m to the numbers.
+     Only the first character after the number is significant so you
+     may write the numbers however it might be convenient, e.g. `14k',
+     `14kB', `14kilobytes', the same as for `disable'.  
+
+`type=CTIME/MTIME/ATIME'
+     This value is used to set the type of time comparison made using
+     `age'. The default is to compare access times (atime) or the last
+     time the file was read. A comparison by modification time (mtime)
+     uses the last time the contents of the file was changed. The ctime
+     parameter is the last time the contents, owner or permissions of
+     the file were changed. Note that on directories, mtime is always
+     used for comparisons, since the very act of stat'ing alters atime
+     and makes this comparison meaningless.
+
+`dirlinks=KEEP/TIDY/DELETE'
+     This value is used to decide whether cfengine will delete links
+     which point to directories. The default value is to keep the
+     links. Note that, if the `travlinks' option is switched on,
+     cfengine will not tidy or delete links which point to directories,
+     instead it follows them into the subdirectory. This is a supplement
+     to the `rmdirs' option. You need both to make links to directories
+     disappear. Note that, even if `travlinks' is set to true, cfagent
+     will not follow symbolic links that are not owned by the agent
+     user ID; this is to prevent link race attacks, in which users with
+     write access could divert the agent to another part of the
+     filesystem, 
+
+`rmdirs=TRUE/FALSE/ALL/SUB'
+     Normally cfengine will not delete directories. If this option is
+     set to `true' then cfengine will delete any directories which are
+     _empty_. Non-empty directories will not be touched and no message
+     will be given unless in verbose mode. Note that this option
+     overrides the above option `dirlinks', so that even links which
+     point to empty directories will be removed.  If this is set to
+     `sub' then the topmost directory will not be removed, only
+     sub-directories.
+
+`define=CLASSLIST'
+     The colon, comma or dot separated list of classes becomes defined
+     if any file matching the specified pattern is deleted.
+
+`xdev'
+     Prevents cfengine from descending into file systems that are not
+     on the same device as the root of the rescurion path.  
+
+   Take a look at the following example:
+
+     tidy:
+
+        AllHomeServers::
+
+            home     pattern=core   R=inf age=0
+            home     pattern=*~     R=inf age=7
+            home     pattern=#*     R=inf age=30
+
+
+        any::
+
+            /tmp/    pat=*            R=inf   age=1
+            /        pat=core         R=2     age=0
+            /etc     pat=hosts.equiv  r=0     age=0
+
+   In the first example, all hosts in the group `AllHomeServers'
+iterate a search over all user home directories looking for `core' files
+(older than zero days) and `emacs' backup files `*~', `#*' older than
+seven days.
+
+   The default values for these options are the empty string for the
+wildcard pattern, zero for the recursion and a specification of the age
+is compulsory.
+
+   When cfengine tidies users' home directories, it keeps a log of all
+the files it deletes each time it is run.  This means that, in case of
+accidents, the user can see that the file has been deleted and restore
+it from backup.  The log file is called `.cfengine.rm' and it is placed
+in the home directory of each user.  The file is owned by root, but is
+readable to the user concerned.
+
+
+File: cfengine-Reference.info,  Node: unmount,  Prev: tidy,  Up: Cfagent reference
+
+4.40 unmount
+============
+
+The unmount function unmounts non-required filesystems and removes the
+appropriate entry from the filesystem table (`/etc/fstab' or
+equivalent).  The syntax is simply
+
+     unmount:
+
+        CLASS::
+
+           MOUNTHOST:FILESYSTEM
+
+             deletedir=TRUE/FALSE
+             deletefstab=TRUE/FALSE
+             force=TRUE/FALSE
+             ifelapsed=MINS
+             expireafter=MINS
+
+The options allow you to temporarily unmount a directory without
+actually removing it from the filesystem table. The option `force' is
+not currently implemented and will likely have to be system dependent.
+For example:
+
+     unmount:
+
+        physics::
+
+           libraryserver:/$(site)/libraryserver/data
+
+If the device is busy then the actual unmount will not take place until
+it becomes free, or the machine is rebooted.  This feature should work
+on AIX systems, in spite of these machines inherent peculiarities in the
+form of the filesystem table.
+
+   Some users do not mount filesystems on a directory of the same name
+as the source directory. This can lead to confusion.  Note, if you have
+problems removing a mounted filesystem, try using the mountpoint of the
+filesystem, rather than the name of the filesystem itself, in the
+unmount command.
+
+
+File: cfengine-Reference.info,  Node: Cfservd.conf and cfrun reference,  Next: Cfexecd reference,  Prev: Cfagent reference,  Up: Top
+
+5 Cfservd and cfrun reference
+*****************************
+
+* Menu:
+
+* cfservd control::
+* admit grant and deny::
+* cfrun::
+* Firewalls and NATs::
+
+   The server daemon is controlled by a file called `cfservd.conf'.  The
+syntax of this configuration file is deliberately modelled on
+cfengine's own configuration file, but despite the similarities, they
+are separate.
+
+   You can use `groups' and `import' in both files to break up files
+into convenient modules and to import common resources, such as lists
+of groups.
+
+   Note that the classes in the `cfservd.conf' file do not tell you the
+classes of host which have access to files and directories, but rather
+which classes of host pay attention to the access and deny commands when
+the file is parsed.
+
+   Authentication is not by class or group but by hostname, like the
+`/etc/exports' file on most Unix systems. The syntax for the file is as
+follows:
+
+
+      control:
+
+        CLASSES::
+
+            domain = ( DNS-DOMAIN-NAME )
+
+            cfrunCommand = ( "SCRIPT/FILENAME" )  # Quoted
+
+            MaxConnections = ( MAXIMUM NUMBER OF FORKED DAEMONS )
+
+            # ChecksumDatabase = ( FILENAME ) - deprecated
+
+            IfElapsed = ( TIME-IN-MINUTES )
+
+            DenyBadClocks = ( FALSE )
+
+            AllowConnectionsFrom = ( IP NUMBERS )
+
+            DenyConnectionsFrom = ( IP NUMBERS )
+
+            AllowMultipleConnectionsFrom = ( IP NUMBERS )
+
+            TrustKeysFrom  = ( IP NUMBERS )
+
+            AllowUsers = ( mark systemuser )
+
+            LogAllConnections = ( FALSE/TRUE )
+
+            LogEncryptedTransfers = ( FALSE/TRUE )
+
+            SkipVerify = ( IP NUMBERS )
+
+            DynamicAddresses = ( IP NUMBERS )
+
+            BindToInterface = ( IP NUMBER/HOSTNAME )
+
+            HostnameKeys = ( TRUE/FALSE )
+
+      groups:
+
+        GROUP DEFINITIONS
+
+      import:
+
+        FILES TO IMPORT
+
+      admit: | grant:
+
+        CLASSES::
+
+           /FILE-OR-DIRECTORY
+
+             WILDCARDS/HOSTNAMES
+
+      deny:
+
+        CLASSES::
+
+           /FILE-OR-DIRECTORY
+
+             WILDCARDS/HOSTNAMES root=HOSTLIST encrypt=TRUE/ON
+
+
+   Iteration of variables is allowed, hence:
+
+     	control:
+     	  Split = ( " " )
+     	  hostlist = ( "10.10.10.1 10.10.10.2 10.10.10.3" )
+     	  dirs =  ( "bin etc lib" )
+     	  base = ( /usr )
+
+     	#########################################################
+
+     	admit:
+     	   $(base)/$(dirs)   $(hostlist)
+   results in:
+
+     	Path: /usr/bin (encrypt=0)
+     	   Admit: 10.10.10.1 10.10.10.2 10.10.10.3 root=
+     	Path: /usr/etc (encrypt=0)
+     	   Admit: 10.10.10.1 10.10.10.2 10.10.10.3 root=
+     	Path: /usr/lib (encrypt=0)
+     	   Admit: 10.10.10.1 10.10.10.2 10.10.10.3 root=
+
+   The file consists of a control section and access information.
+
+
+File: cfengine-Reference.info,  Node: cfservd control,  Next: admit grant and deny,  Prev: Cfservd.conf and cfrun reference,  Up: Cfservd.conf and cfrun reference
+
+5.1 control cfservd
+===================
+
+* Menu:
+
+* IP address ranges::
+* AllowConnectionsFrom::
+* AllowMultipleConnectionsFrom::
+* AllowUsers::
+* AutoExecCommand::
+* AutoExecInterval::
+* BindToInterface in cfservd::
+* ChecksumDatabase in cfservd::
+* cfrunCommand::
+* DenyBadClocks::
+* DenyConnectionsFrom::
+* cfservd HostnameKeys::
+* cfservd IfElapsed::
+* LogAllConnections::
+* LogEncryptedTransfers::
+* MaxConnections::
+* TrustKeysFrom::
+* DynamicAddresses::
+
+
+File: cfengine-Reference.info,  Node: IP address ranges,  Next: AllowConnectionsFrom,  Prev: cfservd control,  Up: cfservd control
+
+5.1.1 IP address ranges
+-----------------------
+
+In the access control lists below, host ranges can be specified in a
+number of ways i) as substrings, ii) as address ranges denoted by the
+"-" hyphen, or iii) as CIDR (Classless Inter Domain Routing) notation.
+For example
+
+     128.39.73
+     128.39.74.10/23
+     128.39.74-75.10-22
+     2001:700:700:3:290:27ff:fea2:4730-4790
+     2001:700:700:3:290:27ff:fea2:4730/64
+   In the CIDR notation, the slash followed by a number indicates the
+netmask, or the number of bits which are common to a group of hosts.
+Normally, this is connected to a specific subnet, but here it simply
+represents the number of bits from the left which are fixed for
+matching; all remaining bits are wildcards.  The following forms are
+equivalent:
+
+     128.39.74.
+     128.39.74.10/24
+     128.39.74.1-254
+
+
+File: cfengine-Reference.info,  Node: AllowConnectionsFrom,  Next: AllowMultipleConnectionsFrom,  Prev: IP address ranges,  Up: cfservd control
+
+5.1.2 AllowConnectionsFrom
+--------------------------
+
+This variable allows a list of numerical IP masks to be specified,
+which cfservd will allow connections from.  If the list is not empty
+and a host whose IP address is not specified attempts to connect to the
+daemon, its connection will be closed immediately.    This can be used
+to prevent hanging connection attacks from malicous hosts and other
+denial of service attacks which would bind thread resources.
+
+          control:
+
+           AllowConnectionsFrom = ( 128.39.89  192.2.0.10 )
+   
+
+File: cfengine-Reference.info,  Node: AllowMultipleConnectionsFrom,  Next: AllowUsers,  Prev: AllowConnectionsFrom,  Up: cfservd control
+
+5.1.3 AllowMultipleConnectionsFrom
+----------------------------------
+
+This variable should contain a list of IP wildcards to hosts which are
+allowed simultaneous sessions on the server. Hosts which are not in this
+list are allowed to connect only once, i.e. they must terminate and
+reconnect in order to establish a new session. This is to prevent a
+possible attacker from opening multiple sockets and never closing them,
+resulting in a denial of service attack. Hosts IP's can be placed here
+if they could have overlapping copy sessions (e.g. long backup transfers
+which can run over time). This prevents the error message "Multiple
+connections denied/spam shield".
+
+
+File: cfengine-Reference.info,  Node: AllowUsers,  Next: AutoExecCommand,  Prev: AllowMultipleConnectionsFrom,  Up: cfservd control
+
+5.1.4 AllowUsers
+----------------
+
+This list determines which users are to be allowed to connect to the
+daemon.  Note that there is no way of identifying users except by their
+public keys.  If a malicious asserts their identity, when no public key
+for the named user is known to the server, then they could spoof the
+identity of that user.  All users who should be allowed to connect need
+to be here.  This applies to use of cfrun.  
+
+
+     AllowUsers = ( mark root )
+
+   In other words, this is a "security by obscurity" first defence
+against picking up bad keys, when the server is in trust mode, with
+respect to a host. The attacker must know a valid user name in order to
+even try their luck entering into a key dialogue.
+
+   This reduces the probability that spoofing can be successful. The
+only real defence against spoofing is to make sure that all required
+public keys are installed in advance, and to switch off trust.
+
+
+File: cfengine-Reference.info,  Node: AutoExecCommand,  Next: AutoExecInterval,  Prev: AllowUsers,  Up: cfservd control
+
+5.1.5 AutoExecCommand
+---------------------
+
+This variable no longer exists in cfengine version 2.
+
+
+File: cfengine-Reference.info,  Node: AutoExecInterval,  Next: BindToInterface in cfservd,  Prev: AutoExecCommand,  Up: cfservd control
+
+5.1.6 AutoExecInterval
+----------------------
+
+This variable no longer exists in version 2 of cfengine.  
+
+
+File: cfengine-Reference.info,  Node: BindToInterface in cfservd,  Next: ChecksumDatabase in cfservd,  Prev: AutoExecInterval,  Up: cfservd control
+
+5.1.7 BindToInterface in cfservd
+--------------------------------
+
+If this is set to a specific IP address of an IP configured interface,
+cfservd will listen for connections only on that interface. On
+Multi-homed hosts this allows one to restrict the traffic to one
+interface. Note, Unix only allows one or all interfaces to be selected.
+An interface must be configured with an IP address in order to be bound.  
+
+
+File: cfengine-Reference.info,  Node: ChecksumDatabase in cfservd,  Next: cfrunCommand,  Prev: BindToInterface in cfservd,  Up: cfservd control
+
+5.1.8 ChecksumDatabase in cfservd
+---------------------------------
+
+(This variable is deprecated as of version 2.1.21. The location of the
+database will be fixed internally.)
+
+   This is the path and filename to a database which will cache MD5
+checksum values server-side. This optimization is only available if you
+have the Berkeley database library `libdb' on your system. If this
+variable is not defined, no database caching will be used and checksum
+values will be computed directly on request. The utility of this
+solution is a trade-off between the time it takes to compute the
+checksum versus the time for a disk-based lookup.  
+
+
+File: cfengine-Reference.info,  Node: cfrunCommand,  Next: DenyBadClocks,  Prev: ChecksumDatabase in cfservd,  Up: cfservd control
+
+5.1.9 cfrunCommand
+------------------
+
+This string is the command which you would like to be executed remotely
+by the `cfrun' command. Note that you must, in addition, authorize
+access to this file in the `admit' section. The access rule should (as
+usual) be to the actual file object path, not including any symbolic
+links.
+
+
+File: cfengine-Reference.info,  Node: DenyBadClocks,  Next: DenyConnectionsFrom,  Prev: cfrunCommand,  Up: cfservd control
+
+5.1.10 DenyBadClocks
+--------------------
+
+If this is set to `off', cfservd will not deny access to clients whose
+clocks are off by more than one hour. The default is to deny access to
+systems whose clocks differ by more than one hour. This can prevent
+messages of the form `Can't stat' file when remote copying.  
+
+
+File: cfengine-Reference.info,  Node: DenyConnectionsFrom,  Next: cfservd HostnameKeys,  Prev: DenyBadClocks,  Up: cfservd control
+
+5.1.11 DenyConnectionsFrom
+--------------------------
+
+Hosts which are included by the allow-list above can be explicitly
+denied access using this list.
+
+          control:
+
+           DenyConnectionsFrom = ( 128.39.89.76 )  # rogue host
+   
+
+File: cfengine-Reference.info,  Node: cfservd HostnameKeys,  Next: cfservd IfElapsed,  Prev: DenyConnectionsFrom,  Up: cfservd control
+
+5.1.12 HostnameKeys in cfservd
+------------------------------
+
+If this variable is set to true/on, it causes cfservd to lookup and
+store trusted public keys according to their DNS fully qualified host
+name, instead of using the IP address.  This can be useful in
+environments where hosts do not have fixed IP addresses, but do have
+fixed hostnames.
+
+
+       HostnameKeys = ( on )
+   This method of storing keys is not recommended for sites with fixed
+IP addresses, since it removes one security barrier from a potential
+attacker by potentially allowing DNS spoofing.
+
+
+File: cfengine-Reference.info,  Node: cfservd IfElapsed,  Next: LogAllConnections,  Prev: cfservd HostnameKeys,  Up: cfservd control
+
+5.1.13 IfElapsed in cfservd
+---------------------------
+
+The `IfElapsed' anti-spamming filter is also built into `cfservd' so
+that a remote user cannot even get as far as causing cfengine to parse
+its input files (which could be used for spamming in itself). The time
+is in minutes, the default is one hour.
+
+
+File: cfengine-Reference.info,  Node: LogAllConnections,  Next: LogEncryptedTransfers,  Prev: cfservd IfElapsed,  Up: cfservd control
+
+5.1.14 LogAllConnections
+------------------------
+
+If set to true, every successful connection will be logged to syslog.
+This could be useful for identifying abuses of the service, if the
+server should come under attack, e.g. a denial of service attack. The
+IP address can then be excluded from the allowed connections list.
+
+
+File: cfengine-Reference.info,  Node: LogEncryptedTransfers,  Next: MaxConnections,  Prev: LogAllConnections,  Up: cfservd control
+
+5.1.15 LogEncryptedTransfers
+----------------------------
+
+If set to true, every successful request for a file that is granted
+access only with an encrypted connection is logged in syslog.
+
+
+File: cfengine-Reference.info,  Node: MaxConnections,  Next: TrustKeysFrom,  Prev: LogEncryptedTransfers,  Up: cfservd control
+
+5.1.16 MaxConnections
+---------------------
+
+This integer value sets a limit on the maximum number of child daemon
+threads which cfservd will `fork' in order to handle remote requests.
+The default value is ten.  
+
+
+File: cfengine-Reference.info,  Node: TrustKeysFrom,  Next: DynamicAddresses,  Prev: MaxConnections,  Up: cfservd control
+
+5.1.17 TrustKeysFrom
+--------------------
+
+Hosts which are included in this list are automatically trusted, if
+cfservd does not know their public key. This allows public keys to be
+exchanged. Cfservd will not automatically accept a public key from a
+host it does not know, since the key will be used to assert strong
+authentication later.  Once a public key has been associated with an IP
+address, it will never be updated, unless the existing key is deleted
+by hand.
+
+          control:
+
+           TrustKeysFrom = ( 128.39.89.76 )     # trusted host
+           TrustKeysFrom = ( 128.39.89.76/24 )  # trusted subnet
+   
+
+File: cfengine-Reference.info,  Node: DynamicAddresses,  Prev: TrustKeysFrom,  Up: cfservd control
+
+5.1.18 DynamicAddresses
+-----------------------
+
+Hosts which are included in this list are assumed to have IP addresses
+which can change with time, e.g. hosts which are given IP addresses by
+DHCP or a BOOTP like protocol.  
+
+          control:
+
+           DynamicAddresses = ( 128.39.74.100-200 )  # DHCP range
+   
+   If cfservd receives a connection from an IP address that is in this
+list, and trustkey is _true_, the existing key for that IP address can
+be replaced with a new key, and the old key is recorded in a "used keys"
+list, access is granted. If trust is switched off, the server looks in
+the "used key list" to see if the key has been seen before. If not
+access is refused. If it has been seen before - it uses this earlier
+trust to accept the connection and replace the IP-key binding.  
+
+   Note that used keys are kept in a database for easy lookup, whereas
+fixed keys are kept in files for easy administration. If host keys
+change or are reinstalled on the dynamically allocated hosts, then this
+database should probably be deleted to purge keys that become illegal.
+
+   DHCP addresses have no effect on hosts that use IPV6, since IPV6
+addresses are generally issued based on an interface MAC address and do
+not therefore change.  
+
+
+File: cfengine-Reference.info,  Node: admit grant and deny,  Next: cfrun,  Prev: cfservd control,  Up: Cfservd.conf and cfrun reference
+
+5.2 admit, grant and deny
+=========================
+
+* Menu:
+
+* root=::
+* encrypt=::
+* SkipVerify::
+
+
+File: cfengine-Reference.info,  Node: root=,  Next: encrypt=,  Prev: admit grant and deny,  Up: admit grant and deny
+
+5.2.1 `root='
+-------------
+
+This list specifies the names of hosts which are to have read access to
+files, regardless of the owner of the file. This effectively gives root
+users on connecting hosts privileges to non-root owned files on the
+server, but not vice-versa, similar to the NFS root mapping, except
+that there is no question of a client being able to modify files on the
+server. Caution: cfservd trusts the DNS service, so be aware that cache
+poisoning attacks are a possible way of bypassing access controls.
+
+   Cfservd requires you to grant access to files without following any
+symbolic links. You must grant access to the real file or directory in
+order to access the file object. This is a security feature in case
+parties with login access to the server could grant access to
+additional files by having the permission to create symbolic links in a
+transitory directory, e.g. `/tmp'.  
+
+   As of version 2.0.4: Once a verified host address has been
+identified with a functioning public/private key authentication, the IP
+address is added to the SkipVerify list, so that time is not wasted in
+verifying reverse lookups, when the identify can be verified more
+efficiently and securely by a key mechanism.  
+
+
+File: cfengine-Reference.info,  Node: encrypt=,  Next: SkipVerify,  Prev: root=,  Up: admit grant and deny
+
+5.2.2 `encrypt=true'
+--------------------
+
+If this option is set, cfservd will only serve the named files if the
+copy access type is `secure', i.e. on an encrypted link. This
+presupposes that cfengine has been compiled with a working OpenSSL
+library.
+
+
+File: cfengine-Reference.info,  Node: SkipVerify,  Prev: encrypt=,  Up: admit grant and deny
+
+5.2.3 SkipVerify
+----------------
+
+If connecting hosts use a Network Address Translator in order to share
+an IP address, reverse lookup will fail to give a correct verification
+of host identity.  You can switch off cfservd's verification of IP host
+identity for specific IP addresses or patterns using this command. E.g.
+
+
+     SkipVerify = ( 192.0.0.10  192.0.2.  )
+
+   This does not affect key verification.
+
+   NOTE!! This is a security risk because it means that cfservd
+implicitly trusts the connecting hosts! You should be very careful in
+using Network Address Translators in a secure environment. It is not
+recommended for sites which require a high level of security.  
+
+
+File: cfengine-Reference.info,  Node: cfrun,  Next: Firewalls and NATs,  Prev: admit grant and deny,  Up: Cfservd.conf and cfrun reference
+
+5.3 `cfrun'
+===========
+
+The general syntactic form of the `cfrun' command is
+
+
+       cfrun -OPTION --LONGOPTION CLASS1 CLASS2 ...
+
+Since `cfrun' addresses remote hosts, there is an ambiguity in whether
+options are intended for the `cfrun' command itself, on the local host,
+or whether they are to be passed on to the agent on the remote hosts.
+To clarify this distinction, the arguments are organized as follows:
+
+
+       cfrun -LOCAL OPTIONS -- REMOTE OPTIONS -- REMOTE CLASSES
+
+Local options are processed by `cfrun' on the local host; remote options
+are passed on as options to the remote `cfagent' (actually to the
+command defined in `cfrunCommand' in the file `cfservd.conf'; remote
+classes are processed by the remote `cfservd' service, and specifiy
+classes which must be satisfied by the remote host in order to invoke
+the remote command.
+
+   The `-q' and `-I' options are always assumed when executing cfengine
+remotely, so that `SplayTime' is effectively zero when polling hosts
+serially, and the output always shows what is happening on the remote
+hosts.  
+
+   On connecting to a remote host, cfengine attempts to obtain
+credentials by exchanging keys. Unknown keys, in a key exchange, need
+to be explicitly accepted on trust. Normally, the interactive `cfrun'
+program prompts the user explicitly, (like in the secure shell, `ssh',
+connections).  This can be annoying if there are many hosts to connect
+to.  The `-T' option tells cfengine to trust all new keys. This option
+should be used with caution, and only at times when one is sure that the
+hosts one is connecting to are trustworthy.
+
+   Each host evaluates the classes sent by `cfrun' and decides whether
+cfengine should be invoked.  Only hosts which belong to the classes
+defined on the `cfrun' command line are executed. This allows you to
+single out groups of hosts which should execute cfengine, based on the
+very classes which you have defined for your configuration.  If no
+classes are sent on the command line, then all hosts are run.
+
+   `cfrun' uses a configuration file which is located under the
+`CFINPUTS' directory in order to determine which hosts and in which
+order it should try to connect. Because cfengine always uses a reliable
+TCP protocol for connections, it verifies each connection rather than
+simply broadcasting openly. Using this file you can even simulate
+broadcasting to hosts outside your subnet.  
+
+   This file should contain every host name you ever want to configure
+remotely, because you can still select subsets of the file by
+specifying classes which the remote host will understand.  If the
+remote host is not in one of the classes you specify when you run
+`cfrun', then it will simply ignore the request. Conversely, if you do
+not place a host in this file, it will never be contacted when you use
+the `cfrun' command. The format of the file is as follows
+
+
+      #
+      # Comment ..
+      #
+      domain=MY.DOMAIN
+      access=USER1,USER2
+      outputdir=DIRECTORY
+      maxchild=NUMBER LIMIT
+      hostnamekeys=TRUE/FALSE
+      bindtointerface=IP ADDRESS
+
+      HOSTNAME1            OPTIONS
+      HOSTNAME2:PORT OPTIONS
+      ...
+      include=cfrun.site1.external.hosts
+      include=cfrun.site1.internal.hosts
+      include=cfrun.site2.private.hosts
+      include=cfrun.site2.shared.hosts
+
+If the option `outputdir' is present, cfrun forks a separate process
+for each host and passes the output to files in a named directory.  The
+`maxchild' line limits the number of forked processes.
+
+   It is important to add the domain-name to this file.  The options
+you specifiy in this file, per host, are added to those you might
+specify on the command line when invoking cfengine remotely.  For
+instance, you might know of a bug on one host and decide not to perform
+interface configuration on that one machine. You would write a line
+like this:
+
+
+       funny.domain -- -i  # problem host
+
+   You could use `cfrun' inside one of your cfengine configuration
+files in order to remotely execute cfengine on all of the other network
+machines, by setting up a host list. The disadvantage however is that
+cfengine has to poll the systems on the network, which means that
+cfengine cannot be working in parallel on all hosts.
+
+   Some other examples:
+
+
+     e.g.  cfrun -- -- linux          Run on all linux machines
+           cfrun -- -p                Ping and parse on all hosts
+           cfrun -v -- -p             Ping all, local verbose
+           cfrun -v -- -k -- solaris  Local verbose, all solaris, but no copy
+
+   Amongst the local options, one may specify a subset of the hosts
+which are to be contacted by cfrun, i.e. to avoid processing the entire
+list of hosts. For example, to contact only host1 and host2, given that
+they are already in the list of hosts.
+
+
+     cfrun -v host1 host2
+     cfrun -v host1 host2 -- -p
+   
+
+File: cfengine-Reference.info,  Node: Firewalls and NATs,  Prev: cfrun,  Up: Cfservd.conf and cfrun reference
+
+5.4 Firewalls and NATs
+======================
+
+Firewalls and Network Address Translators (NAT) can be a problem for
+addressing.  Suppose you have a firewall and with a private IP-range
+behind the firewall.  You want to update the nodes from a central host.
+You can do a two stage configuration: first update the firewall and
+then update from the firewall to the nodes.
+
+   But suppose you already use SNAT (Source Network Address
+Translation) and DNAT (Destination ...) for the nodes. With DNAT you
+can say that socket 22000 on the firewall is routed to HOST-NAME:5308.
+DNAT gives us the possibilty to update the nodes from a central server
+in one step instead of two.
+
+   If the port command is given cfrun uses this to connect to the client
+instead of the default (5308) one.  Here is an example (`cfrun.hosts'):
+
+     domain=example.org
+     access=mark,sigmund
+     hostnamekeys=true
+
+     node1.example.org
+     node2.example.org:22000 -DNis
+     node2.example.org:22001
+   
+   This connects to: 1) node1 with standard port, 2) node2 with port
+22000 and extra options -DNis and, 3) node2 with port 22000.
+
+
+File: cfengine-Reference.info,  Node: Cfexecd reference,  Next: Problem solving,  Prev: Cfservd.conf and cfrun reference,  Up: Top
+
+6 Cfexecd reference
+*******************
+
+In wrapper mode (non-forking, non-daemon mode), cfagent is run by
+adding a line to the root crontab file of each system:
+
+     0,30 * * * * /usr/local/sbin/cfexecd -F
+
+   This is enough to ensure that cfengine will get run. Any output
+generated by this job, will be stored in `/var/cfengine/outputs'.
+
+   The program `cfexecd' operates as a wrapper for cfagent.  It has the
+following options:
+
+     -h (--help)
+     -d (--debug)
+     -v (--verbose)
+     -q (--no-splay)
+     -F (--no-fork)
+     -1 (--once)
+     -g (--foreground)
+     -p (--parse-only)
+     -L (--ld-library-path)
+
+   In addition, if you add the following to the file `cfagent.conf',
+the system administrator will be emailed a summary of any output:
+
+
+     control:
+
+     smtpserver    = ( mailhub.example.org ) # site MTA which can talk smtp
+     sysadm        = ( mark@example.org )   # mail address of sysadm
+     EmailMaxLines = ( N )             # max lines of output to email
+     OutputPrefix  = ( "!" )                 # Line prefix
+
+Fill in suitable values for these variables. `EmailMaxLines' may be set
+to 0 to disable email output, a postive integer to set a limit, or
+`inf' to email the whole output regardless of its size. If undefined,
+`EmailMaxLines' defaults to 100.
+
+   An alternative, or additional way to run cfengine, is to run the
+`cfexecd' program is daemon mode (without the `-F') option. In this
+mode, the daemon lives in the background and sleeps, activating only in
+accordance with a scheduling policy. The default policy is to run once
+every hour (equivalent to `Min00_05'). Here is how you would modify
+`cfagent.conf' in order to make the daemon execute cfagent every
+half-hour:
+
+       control:
+
+        # When should cfexecd in daemon mode wake up the agent?
+
+        schedule   = ( Min00_05 Min30_35 )
+   Note that the time specifications are the basic cfengine _time
+classes_.  Although one of these methods should suffice, no harm will
+arise from running both cron and the cfexecd side-by-side.  Locking
+mechanisms are used by `cfagent' to ensure that no contention will
+occur.  
+
+   Note, that if problems with library path for compiled-in libraries
+occur, an explicit library path can be specified with the `-L' option.
+
+     0,30 * * * * /usr/local/sbin/cfexecd -F -L /local/iu/lib:/local/lib:/local/gnu/lib
+
+   The output generated by a cfagent run is collected and stored with
+date stamps in the `outputs' subdirectory of the work directory
+(usually `/var/cfengine/outputs'). If cfengine has a valid smtp server
+configured it will attempt to E-mail new reports to the system
+administrator.  Duplicate reports are suppressed however for a period
+of one day. Thus, if one has a repeating message, then it will only be
+sent by E-mail once per day - this feature is meant to prevent cfagent
+from spamming administators with multiple, indentical reports.  As soon
+a report different from the previous one is received, the memory is
+reset.
+
+   Note: this repeated message suppression feature cannot work if you
+include time dependent data in messages, i.e. if you include the date
+or time in an alert, then clearly the message will be a different
+message each time. Output from cfengine should not contain the time or
+date, except in the E-mail header.
+
+
+File: cfengine-Reference.info,  Node: Problem solving,  Next: Example configuration file,  Prev: Cfexecd reference,  Up: Top
+
+7 Problem solving
+*****************
+
+* Menu:
+
+* cf.preconf bootstrap file::
+* cfrc resource file::
+
+
+File: cfengine-Reference.info,  Node: cf.preconf bootstrap file,  Next: cfrc resource file,  Prev: Problem solving,  Up: Problem solving
+
+7.1 cf.preconf bootstrap file
+=============================
+
+In some cases you will want to run cfengine on a system to configure it
+from scratch.  If the system is in a very bad way, it might not even be
+able to parse the cfengine configuration file, perhaps because the
+network was not properly configured or the DNS (Domain Name Service) was
+out of action.  To help prevent this situation, cfengine looks for a
+script called `cf.preconf' which gets executed prior to parsing and can
+be used to perform any emergency tests.  This file needs only contain
+enough to get the system to parse the configuration files.
+
+   `cf.preconf' may be any script in any language.  It need not exist
+at all! It is fed one argument by cfengine, namely the system hard-class
+for the current system (e.g.  `ultrix').  Here is an example:
+
+     #!/bin/sh
+     #
+     # cf.preconf is an emergency/bootstrap file to get things going
+     # in case cfengine is unable to parse its config file
+     #
+
+     backupdir=/iu/nexus/local/iu/etc
+
+      #
+      # If these files don't exist, you might not be able to parse cfagent.conf
+      #
+
+     if [ ! -s /etc/resolv.conf ]; then
+
+      echo Patching basics resolv.conf file
+      cat > /etc/resolv.conf << XX
+     domain iu.hioslo.no
+     nameserver 128.39.89.10
+     XX
+
+     fi
+
+     #
+     # SVR4
+     #
+
+     if [ "$1" = "solaris" ]; then
+
+       if [ ! -s "/etc/passwd" ]; then
+
+       echo Patching missing passwd file
+         /bin/cp $backupdir/passwd /etc/passwd
+       fi
+
+       if [ ! -s "/etc/shadow" ]; then
+
+        echo Patching missing passwd file
+        /bin/cp $backupdir/shadow /etc/shadow
+       fi
+     fi
+
+     #
+     # BSD 4.3
+     #
+
+     if [ "$1" = "linux" ]; then
+
+        if [ ! -s "/etc/passwd"  ]
+        then
+
+         echo Patching missing passwd file
+         /bin/cp $backupdir/passwd.linux /etc/passwd
+        fi
+     fi
+
+   Note - in some circumstances, it might be appropriate to exit
+cfengine altogether after this script. If the script outputs a string
+containing the text "cfengine-preconf-abort", then cfagent will abort
+execution immediately after this.
+
+
+File: cfengine-Reference.info,  Node: cfrc resource file,  Prev: cf.preconf bootstrap file,  Up: Problem solving
+
+7.2 cfrc resource file
+======================
+
+If, for some reason you are not satisfied with the defaults which
+cfengine uses, then you can change them by making an entry in the
+resource file.  The default values are defined in the source code file
+`classes.c' in the distribution.  The format of the resource file is:
+
+     hardclass.variable: value
+
+For example, you might want to forget about where your HPUX system
+mounts its mail directory and mount it under `/usr/spool/mail'.  In
+this case you would add the line:
+
+     hpux.maildir: /usr/spool/mail
+
+To redefine the filesystem table for GNU/linux, you would write:
+
+     linux.fstab: /etc/linuxfstab
+
+The full list of re-definable resources is:
+
+        mountcomm       # command used to mount filesystems
+        unmountcomm     # command used to unmount filesystems
+        ethernet        # name of the ethernet device
+        mountopts       # options to above mount command
+        fstab           # the name of the filesystemtable
+        maildir         # the location of the mail directory
+        netstat         # the full path to netstat and options
+        pscomm          # the path to the system's ps command
+        psopts          # the options used by ps (default aux/ef)
+
+   You should never need to redefine resources unless you decide to do
+something non-standard.  Interested readers are referred to the values
+in `classes.c'.
+
+   Cfengine is easily extensible so as to support a variety of
+architectures.  You can even add your own.  To do so you need, first of
+all, to define a new class for the operating system concerned.  The file
+_classes.c_ has been separated off from the remainder of the source
+code so that you can easily see which data structures need to be
+extended.
+
+   To make life as straightforward as possible, three unused classes
+have been defined.  They are called (unremarkably) _unused1_, _unused2_
+and _unused3_.  If you add any further classes, it will be necessary to
+increase the constant _clssattr_ defined in _cf.defs.h_ by one for
+every new addition.  You do not need to change _clssattr_ if you simple
+replace one of the unused classes by a real class.
+
+   To see fully the impact of what you need to do, you should make a
+search for the strings _unused?_ in all of the source files.  Certain
+special cases need to be handled for each operating system.  For
+example, the form of the filesystem table is quite radically different
+on some systems such as AIX.  One thing you must do is to fill in the
+default values for the new operating system in the file _classes.c_.
+
+   If you fill in the details for a new operating system before it finds
+its way into a new release, you might consider sending the details to
+the bug list in the next paragraph.
+
+
+File: cfengine-Reference.info,  Node: Example configuration file,  Next: Variable Index,  Prev: Problem solving,  Up: Top
+
+8 Example configuration files
+*****************************
+
+Here is a sample from a large configuration file, just to give you some
+ideas. The file is broken up into manageable pieces for convenience.
+
+* Menu:
+
+* cfagent.conf::
+* cf.groups::
+* cf.main::
+* cf.site::
+* cf.motd::
+* cf.users::
+* cf.solaris::
+* cf.linux::
+* cf.freebsd::
+* cfservd.conf::
+
+
+File: cfengine-Reference.info,  Node: cfagent.conf,  Next: cf.groups,  Prev: Example configuration file,  Up: Example configuration file
+
+8.1 cfagent.conf
+================
+
+     #####################################################################
+     #
+     #  CFENGINE CONFIGURATION FOR site = iu.hioslo.no
+     #
+     #  This file is for root only.
+     #
+     ######################################################################
+
+     ###
+     #
+     # BEGIN cfagent.conf
+     #
+     ###
+
+     import:
+
+        #
+        # Split things up to keep things tidy
+        #
+
+        any::
+                         cf.groups
+                         cf.main
+                         cf.site
+                         cf.motd
+
+        hpux::           cf.hpux
+        linux::          cf.linux
+        solaris::        cf.solaris
+        sun4::           cf.sun4
+        ultrix::         cf.ultrix
+        freebsd::        cf.freebsd
+
+        #
+        # Do you want to do this ?
+        #
+
+        AllHomeServers:: cf.users
+
+
+     ###
+     #
+     # END cfengine.conf
+     #
+     ###
+
+
+File: cfengine-Reference.info,  Node: cf.groups,  Next: cf.main,  Prev: cfagent.conf,  Up: Example configuration file
+
+8.2 cf.groups
+=============
+
+     ##############################################################
+     #
+     # cf.groups - for iu.hioslo.no
+     #
+     # This file contains  all group/class definitions
+     #
+     #################################################################
+
+     ###
+     #
+     # BEGIN cf.groups
+     #
+     ###
+
+     groups:
+
+        #
+        # Define some groups
+        #
+
+        iu = ( nexus ferengi regula borg dax lore axis worf daystrom voyager
+               aud1 aud2 aud3 aud4 bajor ds9 takpah takpeh nostromo galron
+               thistledown rama chaos pc-steinarj pc-hildeh way jart kosh )
+
+        diskless   = ( regula ferengi lore )
+
+        standalone = ( nexus axis dax borg worf daystrom voyager
+                       aud1 aud2 aud3 aud4 bajor ds9 takpah takpeh
+                       nostromo galron thistledown rama pc-torejo
+                       pc-steinarj pc-hildeh )
+
+        AllHomeServers   = ( nexus )
+        AllBinaryServers = ( nexus borg )
+
+        XBootServer  = ( nexus )
+        WWWServers   = ( nexus )
+        FTPserver    = ( nexus )
+        NameServers  = ( nexus )
+        PasswdServer = ( nexus )
+        BackupHost   = ( nexus )
+
+        MailHub      = ( nexus )
+        MailClients  = ( iu -nexus )
+
+     ###
+     #
+     # END cf.groups
+     #
+     ###
+
+
+File: cfengine-Reference.info,  Node: cf.main,  Next: cf.site,  Prev: cf.groups,  Up: Example configuration file
+
+8.3 cf.main
+===========
+
+     ##############################################################
+     #
+     # cf.main - for iu.hioslo.no
+     #
+     # This file contains generic config stuff
+     #
+     #################################################################
+
+     ###
+     #
+     # BEGIN cf.main
+     #
+     ###
+
+     control:
+
+        access    = ( root )        # Only root should run this
+
+        site      = ( iu )
+        domain    = ( iu.hioslo.no )
+        sysadm    = ( drift@iu.hioslo.no )
+
+        repository = ( /var/spool/cfengine )
+
+        netmask   = ( 255.255.255.0 )
+        timezone  = ( MET )
+        nfstype   = ( nfs )
+
+        sensiblesize  = ( 1000 )
+        sensiblecount = ( 2 )
+        editfilesize  = ( 20000 )
+
+        mountpattern = ( /$(site)/$(host) )
+        homepattern  = ( u? )
+
+        #
+        # If we undefine this with cfengine -N longjob
+        # then we switch off all jobs labelled with this class
+        #
+
+        addclasses = ( longjob )
+
+        #
+        # Macros & constants are inherited downwards in imports
+        # but are not passed up to parent files. Good idea to
+        # define them all here
+        #
+
+        masterfiles = ( /iu/nexus/local/iu )
+        main_server = ( nexus )
+        cfbin       = ( /iu/nexus/local/gnu/lib/cfengine/bin )
+        gnu         = ( /local/gnu )
+        ftp         = ( /local/iu/ftp )
+        nisslave    = ( dax )
+        nisfiles    = ( /iu/nexus/local/iu/etc )
+
+        #
+        # The action sequence for daily (full) runs and
+        # for hourly updates (called with -DHourly)
+        #
+
+        Hr00::
+
+           actionsequence =
+              (
+              copy
+              mountall
+              mountinfo
+              checktimezone
+              netconfig
+              resolve
+              unmount
+              shellcommands
+              addmounts
+              links.Prepare
+              files.Prepare
+              directories
+              links.Rest
+              mailcheck
+              mountall
+              required
+              tidy
+              disable
+              editfiles
+              files.Rest
+              processes
+              )
+
+        !Hr00::
+
+           actionsequence =
+              (
+              resolve
+              shellcommands
+              copy
+              editfiles
+              processes
+     	 links
+              )
+
+        force::
+
+           actionsequence =
+              (
+              files.Prepare.Rest
+              tidy
+              )
+
+     ######################################################################
+
+     homeservers:
+
+        iu:: nexus
+
+     binservers:
+
+        iu.solaris::                 nexus
+        iu.linux::                   borg
+
+     mailserver:
+
+        any:: nexus:/var/mail
+
+     mountables:
+
+        any::
+              nexus:/iu/nexus/u1
+              nexus:/iu/nexus/u2
+              nexus:/iu/nexus/u3
+              nexus:/iu/nexus/u4
+              nexus:/iu/nexus/u5
+              nexus:/iu/nexus/u6
+              nexus:/iu/nexus/ua
+              nexus:/iu/nexus/ud
+              nexus:/iu/nexus/local
+              nexus:/opt/NeWSprint
+              nexus:/opt/AcroRead
+              borg:/iu/borg/local
+              dax:/iu/dax/local
+
+     miscmounts:
+
+        linux||freebsd::   nexus:/iu/nexus/local /iu/nexus/local ro
+
+     ######################################################################
+
+     broadcast:
+
+       ones
+
+     defaultroute:
+
+        cadeler30-gw
+
+     ######################################################################
+
+     resolve:
+
+           128.39.89.10  # nexus
+           158.36.85.10  # samson.hioslo.no
+           129.241.1.99
+
+     ######################################################################
+
+     tidy:
+
+        #
+        # Some global tidy-ups
+        #
+
+           /tmp/                    pat=*             r=inf     A=1
+           /var/tmp                 pat=*             r=inf     A=1
+           /                        pat=core          r=1       A=0
+           /etc                     pat=core          r=1       A=0
+
+     ######################################################################
+
+     ignore:                       # Don't check or tidy these directories
+
+           /local/lib/gnu/emacs/lock/
+           /local/tmp
+           ftp
+           projects
+           /local/bin/top
+           /local/lib/tex/fonts
+           /local/iu/etc
+           /local/etc
+           /local/iu/httpd/conf
+           /usr/tmp/locktelelogic
+           /usr/tmp/lockIDE
+           RootMailLog
+
+           #
+           # Emacs lock files etc
+           #
+
+           !*
+           /local/lib/xemacs
+
+           #
+           # X11 keeps X server data in /tmp/.X11
+           # better not delete this!
+           #
+
+           .X11
+
+           #
+           # Some users like to give a file or two 777 protection here
+           # so netsurfers can update a log or counter when running as
+           # `nobody'
+           #
+
+           www
+
+     #####################################################################
+
+     disable:
+
+        /etc/hosts.equiv
+        /etc/nologin
+        /usr/lib/sendmail.fc
+
+
+     ###
+     #
+     # END cf.main
+     #
+     ###
+
+
+File: cfengine-Reference.info,  Node: cf.site,  Next: cf.motd,  Prev: cf.main,  Up: Example configuration file
+
+8.4 cf.site
+===========
+
+     ##############################################################
+     #
+     # cf.site - for iu.hioslo.no
+     #
+     # This file contains site specific data
+     #
+     #################################################################
+
+     ###
+     #
+     # BEGIN cf.site
+     #
+     ###
+
+     links:
+
+        Prepare::
+
+           /local     -> /$(site)/$(binserver)/local
+           /usr/local -> /local
+
+        dax::
+
+           /iu/dax/local             +> /iu/nexus/local
+           /projects                 -> /iu/dax/local/projects
+           /iu/nexus/u1/sowille/data -> /iu/dax/scratch/data
+
+        XBootServer::
+
+           #
+           # Set up a /local/tftpboot area where all X terminal
+           # stuff will be kept.
+           #
+
+           /tftpboot                  -> /local/tftpboot
+           /local/tftpboot/td/configs -> /local/tftpboot/td/examples/configs
+           /etc/bootptab              -> /tftpboot/bootptab
+           /tftpboot/usr/lib/X11/td   -> /tftpboot/td
+
+        NameServers::
+
+           /etc/named.boot -> /local/iu/named/named.boot
+
+        MailHub::
+
+           /etc/mail/sendmail.cf ->! /iu/nexus/local/mail/sendmail.cf
+
+        MailClients.solaris::
+
+           /etc/mail/sendmail.cf ->! /iu/nexus/local/mail/client.cf
+
+        nexus::
+
+     	/local/bin +> /local/latex/bin
+
+     #############################################################
+
+     disable:
+
+       #
+       # We run Berkeley sendmail and the config files are
+       # all under /iu/nexus/local/lib/mail
+       #
+
+         /etc/aliases
+
+      WWWServers.Sunday::
+
+        #
+        # Disabling these log files weekly prevents them from
+        # growing so enormous that they fill the disk!
+        #
+
+        /local/iu/httpd/logs/access_log   rotate=empty
+        /local/iu/httpd/logs/agent_log    rotate=empty
+        /local/iu/httpd/logs/error_log    rotate=empty
+        /local/iu/httpd/logs/referer_log  rotate=empty
+
+        #
+        # CERT warning, security fix
+        #
+
+       any::
+
+         /usr/lib/expreserve
+
+       FTPserver.Sunday.Hr00::
+
+        /local/iu/xferlog rotate=3
+
+     #################################################################
+
+     files:
+
+       Prepare::
+
+           /etc/motd              m=0644 r=0 o=root act=touch
+           /.cshrc                m=0644 r=0 o=root act=touch
+
+        PasswdServer::
+
+           /local/iu/etc/passwd m=0644 o=root g=other action=fixplain
+           /local/iu/etc/shadow m=0644 o=root g=other action=fixplain
+
+        WWWServers.Rest::
+
+           /local/iu/www                           m=775        g=www act=fixall r=inf
+           /local/iu/httpd/conf                    m=664 o=root g=www act=fixall r=inf
+           /local/iu/www/cgi-bin-public/count_file m=777 o=root g=www act=fixplain
+
+        FTPserver::
+
+           #
+           # Make sure anonymous ftp areas have the correct
+           # protection, or logins won't be able to read
+           # files - or perhaps a security risk. This is
+           # Solaris 2 specific...
+           #
+
+           $(ftp)/pub        mode=755 o=ftp  g=ftp  r=inf act=fixall
+           $(ftp)/Obin       mode=111 o=root g=other      act=fixall
+           $(ftp)/etc        mode=111 o=root g=other      act=fixdirs
+           $(ftp)/usr/bin/ls mode=111 o=root g=other      act=fixall
+           $(ftp)/dev        mode=555 o=root g=other      act=fixall
+           $(ftp)/usr        mode=555 o=root g=other      act=fixdirs
+
+        Prepare::
+
+           /etc/shells mode=0644 action=touch
+
+        AllBinaryServers.Rest.longjob::
+
+          /local mode=-0002 r=inf owner=root,bin group=0,1,2,3,4,5,6,7,staff
+                 links=tidy action=fixall
+
+          /local/iu/RootMailLog  m=0666 action=touch
+
+        dax.Rest::
+
+         /iu/dax/scratch        r=0 o=root mode=1777 action=fixall
+         /iu/dax/local/projects r=0 o=root mode=755  action=fixdirs
+
+        nexus::
+
+         /local/mail/sendmail.cf o=root m=444 act=fixplain
+
+         /iu/nexus/ua/robot/.rhosts o=robot m=600 act=touch
+
+         /local/iu/named/pz         o=root  m=644 act=fixall r=1
+
+         /local/latex/lib/tex/texmf/fonts  owner=root
+                                           mode=1666
+                                           recurse=inf
+                                           action=fixall
+
+     #################################################################
+
+     tidy:
+
+           #
+           # Make sure the file repository doesn't fill up
+           #
+
+           /var/spool/cfengine pattern=*    age=3
+
+           /var                pattern=core age=0  r=inf
+           /var/spool/mqueue   pattern=*    age=14 type=mtime
+
+        BackupHost::
+
+           # Here we tidy old backup tar files from the backup area
+           # A special tmp area gets cleared every 4 days. The files
+           # are created by Audun's backup help script (see shellcommands)
+
+           /iu/nexus/backup1      pat=*  age=7
+
+     #################################################################
+
+     shellcommands:
+
+        PasswdServer::
+
+           # Build and install the BSD compatible passwd file
+           # from the master passwd/shadow file on Solaris
+
+           "/local/iu/bin/BuildPasswdFiles"
+           "/local/iu/bin/BuildGroupFiles"
+
+       BackupHost.Sunday.Hr00|BackupHost.Wednesday.Hr00::
+
+           #
+           # Make a system backup of /iu/nexus/u? with Audun's script
+           #
+
+           "$(cfbin)/cfbackup -p -f /iu/nexus/backup1 -s /iu/nexus/ud"
+           "$(cfbin)/cfbackup -p -f /iu/nexus/backup1 -s /iu/nexus/ua"
+           "$(cfbin)/cfbackup -p -f /iu/nexus/backup1 -s /iu/nexus/u1"
+           "$(cfbin)/cfbackup -p -f /iu/nexus/backup1 -s /iu/nexus/u2"
+           "$(cfbin)/cfbackup -p -f /iu/nexus/backup2 -s /iu/nexus/u3"
+           "$(cfbin)/cfbackup -p -f /iu/nexus/backup2 -s /iu/nexus/u4"
+           "$(cfbin)/cfbackup -p -f /iu/nexus/backup2 -s /iu/nexus/u5"
+           "$(cfbin)/cfbackup -p -f /iu/nexus/backup2 -s /iu/nexus/u6"
+
+       nexus.Sunday.longjob.Hr00::
+
+           #
+           # See how much rubbish users have accumulated each Sunday
+           #
+
+           "$(cfbin)/noseyparker /iu/nexus/u1 $(sysadm) "
+           "$(cfbin)/noseyparker /iu/nexus/u2 $(sysadm) "
+           "$(cfbin)/noseyparker /iu/nexus/u3 $(sysadm) "
+           "$(cfbin)/noseyparker /iu/nexus/u4 $(sysadm) "
+           "$(cfbin)/noseyparker /iu/nexus/u5 $(sysadm) "
+           "$(cfbin)/noseyparker /iu/nexus/u6 $(sysadm) "
+           "$(cfbin)/noseyparker /iu/nexus/ua $(sysadm) nomail"
+           "$(cfbin)/noseyparker /iu/nexus/ud $(sysadm) nomail"
+
+        nexus.longjob.Hr00::
+
+           #
+           # Update the GNU find/locate database each night
+           #
+
+           "$(gnu)/lib/locate/updatedb"
+           "/local/iu/bin/newhomepage.sh"
+
+     ###############################################################
+
+     editfiles:
+
+         #
+         # cfengine installs itself as a cron job - sneaky! :)
+         #
+
+         { /var/spool/cron/crontabs/root
+
+         AppendIfNoSuchLine "0 * * * * $(cfbin)/cfwrap $(cfbin)/cfhourly"
+         }
+
+        FTPserver::
+
+           { /etc/shells
+
+           AppendIfNoSuchLine "/bin/tcsh"
+           AppendIfNoSuchLine "/local/gnu/bin/bash"
+           }
+
+
+        XBootServer::
+
+           { /etc/inetd.conf
+
+           AppendIfNoSuchLine
+               "bootp dgram udp wait root /local/bin/bootpd bootpd -i -d"
+           }
+
+        nexus::
+
+           { /iu/nexus/ua/robot/.rhosts
+
+           AppendIfNoSuchLine "borg"
+           AppendIfNoSuchLine "borg.iu.hioslo.no"
+           AppendIfNoSuchLine "aud4"
+           AppendIfNoSuchLine "aud4.iu.hioslo.no"
+           }
+
+        dax::
+
+           { /etc/system
+
+           AppendIfNoSuchLine "set pt_cnt=128"
+           }
+
+
+     ######################################################################
+
+     required:
+
+        #
+        # Any host must have a /local, /usr/local fs. Check that
+        # it exists and looks sensible. (i.e. not empty)
+        #
+
+        /$(site)/$(binserver)/local
+
+
+     ######################################################################
+
+     copy:
+
+        #
+        # NIS seems broken at IU, so here we use NFS to fudge
+        # a file distribution as a temporary solution. Actually
+        # this makes the system work faster without NIS!
+        #
+
+           $(nisfiles)/services dest=/etc/services o=root g=other mode=0644
+           $(nisfiles)/hosts.deny dest=/etc/hosts.deny o=root mode=0644
+
+        !debian::
+
+           $(nisfiles)/hosts    dest=/etc/hosts o=root g=other mode=0644
+
+        PasswdServer::
+
+           /etc/passwd dest=$(nisfiles)/passwd o=root g=other mode=0644
+           /etc/shadow dest=$(nisfiles)/shadow o=root g=other mode=0644
+
+        nexus::
+
+           /local/iu/etc/dfstab dest=/etc/dfs/dfstab  o=root  mode=0744
+
+        solaris.!PasswdServer::
+
+           $(nisfiles)/passwd dest=/etc/passwd o=root g=other mode=0644
+           $(nisfiles)/shadow dest=/etc/shadow o=root g=other mode=0600
+           $(nisfiles)/group.solaris dest=/etc/group o=root g=other mode=0644
+
+        linux::
+
+           $(nisfiles)/passwd.linux dest=/etc/passwd o=root g=other mode=0644
+           $(nisfiles)/group.linux dest=/etc/group o=root g=other mode=0644
+
+     ###############################################################
+
+     processes:
+
+           "eggdrop"                           signal=kill
+           "irc"                               signal=kill
+           "ping"                              signal=kill
+           "NetXRay"                           signal=kill
+           "netxray"                           signal=kill
+           "ypserv"                            signal=kill
+           "ypbind"                            signal=kill
+           "rarpd"                             signal=kill
+           "rpc.boot"                          signal=kill
+           "README"                            signal=kill # You don't sh README !
+
+        !XBootServer::
+
+           "bootp"                             signal=kill
+
+        #
+        # These processes are not killed every hour, but once a day
+        # when cfengine runs at night. Note that there are often
+        # hanging pine and elm processes. These programs crash and
+        # go berserk, using hundreds of hours of CPU time.
+        #
+
+        Hr00::
+
+           "cron"                 signal=hup  # HUP these to update their config
+           "inetd"                signal=hup
+
+           "/local/sdt/sdt/bin"   signal=term # For those elektro dudes who forget
+                                              # to log out
+           "netscape"             signal=kill
+           "pine"                 signal=kill
+           "elm"                  signal=kill
+
+
+     ###
+     #
+     # END cf.site
+     #
+     ###
+
+
+File: cfengine-Reference.info,  Node: cf.motd,  Next: cf.users,  Prev: cf.site,  Up: Example configuration file
+
+8.5 cf.motd
+===========
+
+
+     ##################################################################
+     #
+     # cf.motd
+     #
+     # This file is used to set the message of the day file on
+     # each host
+     #
+     ##################################################################
+
+      #####
+      #
+      # BEGIN cf.motd
+      #
+      #####
+
+
+     control:
+
+        #
+        # This points to the file containing general text
+        #
+
+        masterfile      = ( /iu/nexus/local/iu/etc/motd-master )
+        local_message   = ( /etc/motd.local )
+
+     editfiles:
+
+           { /etc/motd
+
+           BeginGroupIfFileIsNewer "$(masterfile)"
+             EmptyEntireFilePlease
+             InsertFile "$(masterfile)"
+             InsertFile "$(local_message)"
+             PrependIfNoSuchLine "This system is running $(class):$(arch)"
+           EndGroup
+           }
+
+      #####
+      #
+      # BEGIN cf.motd
+      #
+      #####
+
+
+File: cfengine-Reference.info,  Node: cf.users,  Next: cf.solaris,  Prev: cf.motd,  Up: Example configuration file
+
+8.6 cf.users
+============
+
+Whether or not you perform any special services for users, with or
+without their consent is entirely a matter of local policy. In a school
+or college situation, users are often uncooperative and some are even
+irresponsible.  This file shows you what you could do in an environment
+with inexperienced users, but please don't feel as though you have to be
+this totalitarian.
+
+     #################################################################
+     #
+     # cf.users - for iu.hioslo.no
+     #
+     # This file contains user specific actions
+     #
+     #################################################################
+
+     ###
+     #
+     # BEGIN cf.users
+     #
+     ###
+
+     ignore:
+
+         robot
+
+     tidy:
+
+        longjob::
+
+          #
+          # Some users just don't understand what they are doing
+          # and this is safest, allbeit totalitarian
+          #
+
+          home                 pat=.rhosts                      age=0
+
+          #
+          # Tidy up users' home dirs
+          #
+
+          home                 pat=core             r=inf       age=0
+          home                 pat=a.out            r=inf       age=1
+          home                 p=*%                 r=inf       age=2
+          home                 p=*~                 r=inf       age=2
+          home                 p=#*                 r=inf       age=1
+          home                 p=*.dvi              r=inf       age=14   type=ctime
+          home                 p=*.log              r=inf       age=2
+          home                 p=Log.*              r=inf       age=3
+          home                 p=CKP                r=inf       age=1
+          home                 p=BAK                r=inf       age=1
+          home                 p=log                r=inf       age=0
+          home                 p=*.o                r=inf       age=0
+          home                 p=*.aux              r=inf       age=3
+          home                 p=*.zip              r=inf       age=7
+          home/.deleted        p=*                  r=inf       age=0
+          home/.wastebacket    p=*                  r=inf       age=14
+          home/www             p=*~                 r=inf       age=1
+
+          #
+          # Clear the big cache files netscape creates
+          #
+
+          home/.netscape-cache  p=cache????*         r=inf       age=0
+          home/.MCOM-cache      p=cache????*         r=inf       age=0
+          home/.netscape/cache  p=*                  r=inf       age=0
+
+
+     #################################################################
+
+     files:
+
+        AllHomeServers.longjob.rest::
+
+          #
+          # Check users files are not writable to the world
+          # and there are no stale links (pointing nowhere)
+          #
+
+          home mode=o-w recurse=inf action=fixall # links=tidy
+
+          home/.xsession mode=755 action=fixall
+          home/.cshrc    mode=755 action=fixall
+
+     #################################################################
+
+     copy:
+
+        Hr00.longjob::
+
+        #
+        # Make sure each user has an up to date standard
+        # setup.  Cshrc just sources in a big standard file
+        # which is kept in ~user/../.setupfiles/cshrc
+        # to reduce disk wastage
+        #
+
+        $(masterfiles)/lib/Cshrc   dest=home/.cshrc
+        $(masterfiles)/lib/tkgrc   dest=home/.tkgrc
+        $(masterfiles)/lib/fvwm2rc dest=home/.fvwm2rc
+
+
+     ###
+     #
+     # END cf.users
+     #
+     ###
+
+
+File: cfengine-Reference.info,  Node: cf.solaris,  Next: cf.linux,  Prev: cf.users,  Up: Example configuration file
+
+8.7 cf.solaris
+==============
+
+     #################################################################
+     #
+     # cf.solaris - for iu.hioslo.no
+     #
+     # This file contains Solaris specific patches
+     #
+     #################################################################
+
+     ###
+     #
+     # BEGIN cf.solaris
+     #
+     ###
+
+     directories:
+
+          #
+          # httpd/netscape want this to exist for some bizarre reason
+          #
+
+           /usr/lib/X11/nls
+
+     ################################################################
+
+     tidy:
+
+          /var/log  pattern=syslog.* age=0
+
+        MailHub::
+
+          /var/mail pattern=lp       age=0
+
+     #################################################################
+
+     files:
+
+       #
+       # If this doesn't exist fork will not work and the
+       # system will not even be able to run the /etc/rc
+       # scripts at boottime
+       #
+
+       /etc/system     o=root g=root m=644 action=touch
+
+       /var/log/syslog o=root        m=666 action=touch
+
+     #############################################################
+
+     copy:
+
+        #
+        # Some standard setup files, can't link because
+        # machine won't boot if their not on / partition.
+        #
+
+        /local/bin/tcsh dest=/bin/tcsh mode=755
+
+        /local/iu/etc/nsswitch.standalone dest=/etc/nsswitch.conf
+
+       #
+       # Our named server uses a newer BIND
+       # Put this here so that it will be preserved under
+       # Solaris reinstallation
+       #
+
+       NameServers::
+
+        /local/iu/sbin/in.named         dest=/usr/sbin/in.named         mode=555
+        /local/iu/sbin/in.named.reload  dest=/usr/sbin/in.named.reload  mode=555
+        /local/iu/sbin/in.named.restart dest=/usr/sbin/in.named.restart mode=555
+        /local/iu/sbin/in.ndc           dest=/usr/sbin/in.ndc           mode=555
+        /local/iu/sbin/named-xfer       dest=/usr/sbin/named-xfer       mode=555
+        /local/iu/lib/nslookup.help     dest=/usr/lib/nslookup.help     mode=444
+
+       any::
+        /local/iu/lib/libresolv.a        dest=/usr/lib/libresolv.a      mode=444
+        /local/iu/lib/libresolv.so.2     dest=/usr/lib/libresolv.so.2   mode=444
+        /local/bin/nslookup              dest=/usr/sbin/nslookup        mode=444
+
+     ##############################################################
+
+     editfiles:
+
+           { /etc/netmasks
+
+           AppendIfNoSuchLine "128.39  255.255.255.0"
+           }
+
+           { /etc/defaultrouter
+
+           AppendIfNoSuchLine "128.39.89.1"
+           }
+
+           { /usr/openwin/lib/app-defaults/XConsole
+
+           AppendIfNoSuchLine "XConsole.autoRaise: on"
+           }
+
+        #
+        # CERT security patch for vold vulnerability
+        #
+
+        { /etc/rmmount.conf
+
+        HashCommentLinesContaining "action cdrom"
+        HashCommentLinesContaining "action floppy"
+        }
+
+     ##############################################################
+
+     disable:
+
+         /etc/.login  type=file
+         /etc/aliases
+
+        #
+        # These files are ENORMOUS, don't let them fill the disk
+        #
+
+        Wednesday::
+
+           /var/lp/logs/lpsched rotate=empty
+
+           /var/adm/wtmpx       rotate=empty
+           /var/adm/wtmp        rotate=empty
+
+     ##############################################################
+
+     files:
+
+         /etc/passwd        m=0644 o=root g=other action=fixplain
+         /etc/shadow        m=0600 o=root g=other action=fixplain
+         /etc/defaultrouter m=0644 o=root g=other action=touch
+         /var/adm/wtmpx     m=0664 o=adm  g=adm   action=touch
+         /var/adm/wtmp      m=0644 o=root g=adm   action=touch
+         /var/adm/utmp      m=0644 o=root g=adm   action=fixplain
+         /var/adm/utmpx     m=0664 o=adm  g=adm   action=fixplain
+
+         /tmp m=1777                              action=fixdirs
+
+     ##############################################################
+
+     disable:
+
+        #
+        # CERT security patch
+        #
+
+        /usr/openwin/bin/kcms_calibrate
+        /usr/openwin/bin/kcms_configure
+        /usr/bin/admintool
+
+     ################################################################
+
+     shellcommands:
+
+        AllBinaryServers.Saturday.longjob.Hr00::
+
+           #
+           # Make sure the man -k / apropos data are up to date
+           #
+
+           "/usr/bin/catman  -M /local/man"
+           "/usr/bin/catman  -M /local/X11R5/man"
+           "/usr/bin/catman  -M /usr/man"
+           "/usr/bin/catman  -M /local/gnu/man"
+           "/usr/bin/catman  -M /usr/openwin/share/man"
+           "/usr/bin/catman  -M /local/X11R5/man"
+           "/usr/bin/catman  -M /usr/share/man"
+
+     ################################################################
+
+     editfiles:
+
+
+           #
+           # A painless way to add an rc.local script to the rc files
+           # under Solaris without having to fight though inittab
+           #
+
+           { /etc/rc3.d/S15nfs.server
+
+           AppendIfNoSuchLine "sh /local/iu/etc/rc.local"
+           }
+
+           #
+           # umask defined when inetd starts is inherited by all subprocesses
+           # including ftpd which saves with mode 666 (!) unless we do this
+           #
+
+           { /etc/rc2.d/S72inetsvc
+
+           PrependIfNoSuchLine "umask 022"
+           }
+
+
+     ###
+     #
+     # END cf.solaris
+     #
+     ###
+
+
+File: cfengine-Reference.info,  Node: cf.linux,  Next: cf.freebsd,  Prev: cf.solaris,  Up: Example configuration file
+
+8.8 cf.linux
+============
+
+     #################################################################
+     #
+     # cf.linux - for iu.hioslo.no
+     #
+     # This file contains debian linux specific patches
+     #
+     #################################################################
+
+     ###
+     #
+     # BEGIN cf.linux
+     #
+     ###
+
+     files:
+
+           /etc/printcap m=644 o=root action=fixplain
+
+          #
+          # Cert advisories
+          #
+
+           /bin/mount         m=755 o=root action=fixall
+           /bin/umount        m=755 o=root action=fixall
+
+     #######################################################################
+
+       disable:
+
+          #
+          # Cert advisories
+          #
+
+           /sbin/dip-3.3.7n
+
+     ########################################################################
+
+     links:
+
+         /local/bin/tcsh   ->  /bin/tcsh
+
+         /local/lib/mail   ->  /$(site)/$(main_server)/local/lib/mail
+
+     ########################################################################
+
+     editfiles:
+
+       #
+       # Samba default mode needs to be set...
+       #
+
+        { /etc/smb.conf
+
+        ReplaceAll "700" With "644"
+        }
+
+       #
+       # Linux date is very stupid and needs a very careful
+       # TZ definition, otherwise it loses
+       #
+
+        { /etc/csh.cshrc
+
+        AppendIfNoSuchLine "setenv TZ 'MET-1MET DST-2,M3.5.0/2,M10.5.0/3'"
+        }
+
+       #
+       # resolv+ ordering
+       #
+
+        { /etc/host.conf
+
+        PrependIfNoSuchLine "order bind"
+        }
+
+
+       #
+       # Should have been configured already (!)
+       #
+
+        { /etc/ld.so.conf
+
+        AppendIfNoSuchLine "/usr/X11R6/lib"
+        }
+
+       #
+       # Kill annoying messages
+       #
+
+        { /etc/cron.daily/standard
+
+        HashCommentLinesContaining "security"
+        }
+
+     #########################################################################
+
+     shellcommands:
+
+       Hr00::
+
+          #
+          # Find/locate database
+          #
+
+          "/usr/bin/updatedb"
+
+     ###
+     #
+     # END cf.linux
+     #
+     ###
+
+
+File: cfengine-Reference.info,  Node: cf.freebsd,  Next: cfservd.conf,  Prev: cf.linux,  Up: Example configuration file
+
+8.9 cf.freebsd / cf.netbsd
+==========================
+
+FreeBSD, OpenBSD and NetBSD are sufficiently similar to have a single
+file for all.
+
+     #################################################################
+     #
+     # cf.bsd - for iu.hioslo.no
+     #
+     # This file contains bsd specific patches
+     #
+     #################################################################
+
+     ###
+     #
+     # BEGIN cf.bsd
+     #
+     ###
+
+     links:
+
+         /usr/spool        ->  /var/spool
+         /local/bin/tcsh   ->  /bin/tcsh
+         /local/bin/perl   ->  /usr/bin/perl
+         /usr/lib/sendmail ->  /usr/sbin/sendmail
+
+     #################################################################
+
+     files:
+
+        /usr/tmp mode=1777 owner=root action=fixall
+
+     #################################################################
+
+     editfiles:
+
+        #
+        # Comment out all lines to shut up this annoying cfengine-like
+        # script, which sends mail every day!!!
+        #
+
+        { /etc/crontab
+
+        HashCommentLinesContaining "daily"
+        HashCommentLinesContaining "weekly"
+        HashCommentLinesContaining "monthly"
+        }
+
+     #################################################################
+
+     copy:
+
+           $(masterfiles)/etc/printcap.client      dest=/etc/printcap mode=0644
+
+     #########################################################################
+
+     shellcommands:
+
+       Hr00::
+
+         "/usr/libexec/locate.updatedb"
+         "/usr/bin/makewhatis /usr/share/man:/usr/X11R6/man"
+
+     ###
+     #
+     # END cf.bsd
+     #
+     ###
+
+
+File: cfengine-Reference.info,  Node: cfservd.conf,  Prev: cf.freebsd,  Up: Example configuration file
+
+8.10 cfservd.conf tutorial
+==========================
+
+     #########################################################
+     #
+     # This is a cfservd config file
+     #
+     #########################################################
+
+      #
+      # Could import cf.groups here and use a structure like
+      # in cfengine.conf, cf.main, cf.groups
+      #
+
+     control:
+
+       public = ( /usr/local/publicfiles )
+
+       almost_public = ( /usr/local/almostpublicfiles )
+
+       cfrunCommand = ( /iu/nexus/ud/mark/comp/Tests/cfrun-command )
+
+       MaxConnections = ( 10 )
+
+     #########################################################
+
+     admit:   # or grant:
+
+          $(public) *
+
+          $(almost_public) *.iu.hioslo.no *.gnu.ai.mit.edu
+
+          /etc/passwd *.iu.hioslo.no
+
+          #
+          # Who can exec cfengine remotely?
+          #
+
+          $(cfrunCommand) *.iu.hioslo.no
+
+     #########################################################
+
+     deny:
+
+          $(public)/special *.moneyworld.com
+
+
+File: cfengine-Reference.info,  Node: Variable Index,  Next: Concept Index,  Prev: Example configuration file,  Up: Top
+
+Variable Index
+**************
+
+ [index ]
+* Menu:
+
+* !:                                     Cfengine classes.    (line  98)
+* $(arch):                               Special variables.   (line  20)
+* $(binserver):                          Special variables.   (line  23)
+* $(class):                              Special variables.   (line  40)
+* $(colon):                              Special variables.   (line 151)
+* $(cr):                                 Special variables.   (line 148)
+* $(date):                               Special variables.   (line  45)
+* $(dblquote):                           Special variables.   (line 154)
+* $(dollar):                             Special variables.   (line 157)
+* $(domain):                             Special variables.   (line  48)
+* $(faculty):                            Special variables.   (line  64)
+* $(fqhost):                             Special variables.   (line  67)
+* $(host):                               Special variables.   (line  70)
+* $(ipaddress):                          Special variables.   (line  74)
+* $(lf):                                 Special variables.   (line 160)
+* $(n):                                  Special variables.   (line 163)
+* $(quote):                              Special variables.   (line 166)
+* $(site):                               Special variables.   (line 109)
+* $(spc):                                Special variables.   (line 170)
+* $(sysadm):                             Special variables.   (line 118)
+* $(tab):                                Special variables.   (line 173)
+* $(timezone):                           Special variables.   (line 121)
+* $(version):                            Special variables.   (line 129)
+* $(year):                               Special variables.   (line 132)
+* ${EmailMaxLines}:                      Special variables.   (line  57)
+* +:                                     groups.              (line  40)
+* -D option <1>:                         addclasses.          (line  20)
+* -D option:                             Cfengine classes.    (line  96)
+* -l:                                    tidy.                (line  87)
+* -L:                                    Single links.        (line  22)
+* -l:                                    Syntax.              (line 154)
+* -N option <1>:                         addclasses.          (line  30)
+* -N option:                             Cfengine classes.    (line  96)
+* -x option:                             cf.preconf bootstrap file.
+                                                              (line  74)
+* .cfengine.rm:                          tidy.                (line 184)
+* /etc/host.conf:                        cf.preconf bootstrap file.
+                                                              (line  74)
+* /var/cfengine/output:                  Cfexecd reference.   (line  27)
+* a= <1>:                                tidy.                (line  42)
+* a=:                                    Syntax.              (line  51)
+* AbortClasses:                          control.             (line  66)
+* AccessedBefore():                      Examples setting classes.
+                                                              (line  18)
+* action:                                Syntax.              (line  51)
+* action=:                               packages.            (line  59)
+* actionsequence <1>:                    actionsequence.      (line   6)
+* actionsequence:                        control.             (line  66)
+* AddClasses:                            addclasses.          (line   6)
+* AddInstallable:                        addinstallable.      (line   6)
+* addmounts:                             actionsequence.      (line  35)
+* age:                                   tidy.                (line  42)
+* alerts:                                alerts.              (line   6)
+* AllowUsers:                            AllowUsers.          (line  25)
+* Auditing:                              Auditing.            (line   6)
+* backup=:                               copy.                (line 141)
+* BindToInterface <1>:                   BindToInterface in cfservd.
+                                                              (line  10)
+* BindToInterface:                       BindToInterface in cfagent.
+                                                              (line  11)
+* binserver <1>:                         Link Children.       (line  10)
+* binserver:                             Single links.        (line 110)
+* binservers:                            binservers.          (line   6)
+* broadcast:                             broadcast.           (line   6)
+* bymatch:                               processes.           (line 183)
+* cf.preconf:                            cf.preconf bootstrap file.
+                                                              (line   6)
+* CFALLCLASSES <1>:                      Special variables.   (line  16)
+* CFALLCLASSES:                          Cfagent Runtime Options.
+                                                              (line 145)
+* cfinputs_version:                      Special variables.   (line  27)
+* cfrc:                                  cfrc resource file.  (line   6)
+* ChangedBefore():                       Examples setting classes.
+                                                              (line  18)
+* ChecksumDatabase:                      ChecksumDatabase in cfagent.
+                                                              (line   8)
+* ChecksumPurge:                         ChecksumPurge.       (line   8)
+* ChecksumUpdates:                       ChecksumUpdates.     (line   8)
+* checktimezone:                         actionsequence.      (line  35)
+* childlinks:                            actionsequence.      (line  35)
+* cmp=:                                  packages.            (line  74)
+* CompressCommand:                       CompressCommand.     (line  11)
+* control:                               control.             (line   6)
+* create:                                create.              (line   6)
+* directories:                           actionsequence.      (line  35)
+* disable <1>:                           disable.             (line   6)
+* disable:                               actionsequence.      (line  35)
+* domain <1>:                            domain.              (line   6)
+* domain:                                control.             (line  66)
+* DryRun:                                dryrun.              (line   6)
+* editbinaryfilesize:                    editbinaryfilesize.  (line   6)
+* editfiles:                             actionsequence.      (line  35)
+* editfilesize <1>:                      editfilesize.        (line   6)
+* editfilesize:                          control.             (line  66)
+* EditSplit:                             EditSplit.           (line  14)
+* EmailMaxLines:                         Cfexecd reference.   (line  43)
+* empty:                                 disable.             (line  91)
+* EmptyResolvConf:                       emptyresolvconf.     (line   6)
+* Exclamation:                           exclamation.         (line  12)
+* exclude=:                              Syntax.              (line 141)
+* exec:                                  Setting variables with functions.
+                                                              (line  11)
+* FileExtensions:                        fileextension.       (line  13)
+* files <1>:                             files.               (line   6)
+* files:                                 actionsequence.      (line  35)
+* filter:                                filters.             (line   6)
+* force= <1>:                            disks.               (line  75)
+* force=:                                copy example.        (line  39)
+* freespace=:                            disks.               (line  57)
+* g=:                                    Syntax.              (line  51)
+* group:                                 Syntax.              (line  51)
+* groups:                                groups.              (line   6)
+* home:                                  Syntax.              (line  64)
+* homepattern:                           mountables.          (line  35)
+* HomePattern:                           homepattern.         (line   6)
+* homeservers:                           homeservers.         (line   6)
+* IgnoreInterfaceRegex:                  IgnoreInterfaceRegex.
+                                                              (line  12)
+* import:                                import.              (line   6)
+* include=:                              Syntax.              (line 136)
+* interface configuration:               interfaces.          (line   6)
+* InterfaceName:                         interfacename.       (line   6)
+* IsDir():                               Examples setting classes.
+                                                              (line  18)
+* IsLink():                              Examples setting classes.
+                                                              (line  18)
+* IsNewerThan():                         Examples setting classes.
+                                                              (line  18)
+* IsPlain():                             Examples setting classes.
+                                                              (line  18)
+* l=:                                    Syntax.              (line  51)
+* LastSeen:                              lastseen.            (line  14)
+* LastSeenExpireAfter:                   lastseenexpireafter. (line  12)
+* LD_LIBRARY_PATH:                       control.             (line  66)
+* link:                                  Syntax.              (line  51)
+* linkchildren <1>:                      Link Children.       (line   6)
+* linkchildren:                          Files linkchildren.  (line   6)
+* links <1>:                             links.               (line   6)
+* links:                                 actionsequence.      (line  35)
+* m=:                                    Syntax.              (line  51)
+* mailcheck <1>:                         mailserver.          (line  20)
+* mailcheck:                             actionsequence.      (line  35)
+* mailserver:                            mailserver.          (line   6)
+* MaxCfengines:                          Special variables.   (line  89)
+* methods:                               methods.             (line   6)
+* miscmounts:                            miscmounts.          (line   6)
+* mode:                                  Syntax.              (line  51)
+* module:                                actionsequence.      (line  35)
+* moduledirectory:                       moduledirectory.     (line   6)
+* mountables <1>:                        mountables.          (line   6)
+* mountables:                            homeservers.         (line  35)
+* mountall:                              actionsequence.      (line  35)
+* mountinfo:                             actionsequence.      (line  35)
+* mountpattern:                          mountpattern.        (line   6)
+* netconfig:                             actionsequence.      (line  35)
+* netmask <1>:                           netmask.             (line   6)
+* netmask:                               control.             (line  66)
+* nfstype <1>:                           nfstype.             (line   6)
+* nfstype:                               control.             (line  66)
+* noabspath:                             shellcommands.       (line 110)
+* none:                                  methods.             (line  95)
+* o=:                                    Syntax.              (line  51)
+* ones:                                  broadcast.           (line  22)
+* OutputPrefix:                          Special variables.   (line 101)
+* owner:                                 Syntax.              (line  51)
+* p=:                                    tidy.                (line  42)
+* packages:                              actionsequence.      (line  35)
+* pattern:                               tidy.                (line  42)
+* pkgmgr=:                               packages.            (line 106)
+* processes:                             actionsequence.      (line  35)
+* purge=:                                copy.                (line 345)
+* r= <1>:                                tidy.                (line  42)
+* r=:                                    Syntax.              (line  51)
+* Randomizing strategy:                  strategies.          (line   6)
+* recurse <1>:                           tidy.                (line  42)
+* recurse:                               Syntax.              (line  51)
+* RepChar:                               repchar.             (line  14)
+* repchar:                               Special variables.   (line 105)
+* required:                              actionsequence.      (line  35)
+* resolve <1>:                           resolve.             (line   6)
+* resolve:                               actionsequence.      (line  35)
+* Restricting access:                    access.              (line   6)
+* ReturnsZero():                         Examples setting classes.
+                                                              (line  18)
+* rotate=:                               disable.             (line  91)
+* rxdirs:                                Syntax.              (line  51)
+* scanarrivals=:                         disks.               (line  77)
+* scheduling:                            schedule.            (line   6)
+* scli command interpreter:              scli.                (line  43)
+* SecureInput:                           secureinput.         (line   6)
+* SensibleCount:                         sensiblecount.       (line   6)
+* sensiblecount:                         control.             (line  66)
+* SensibleSize:                          sensiblesize.        (line   6)
+* sensiblesize:                          control.             (line  66)
+* shellcommands:                         actionsequence.      (line  35)
+* ShowActions:                           showactions.         (line   6)
+* signal:                                processes.           (line 183)
+* singlelinks:                           actionsequence.      (line  35)
+* site <1>:                              site.                (line   6)
+* site:                                  control.             (line  66)
+* SkipVerify:                            root=.               (line  25)
+* smtpserver:                            Cfexecd reference.   (line  43)
+* SNMP:                                  scli.                (line  43)
+* Split:                                 EditSplit.           (line  14)
+* split <1>:                             split.               (line  15)
+* split <2>:                             Iteration over lists.
+                                                              (line  89)
+* split:                                 Special variables.   (line 115)
+* SpoolDirectories:                      spooldirectories.    (line   6)
+* SuspiciousNames:                       suspiciousnames.     (line   6)
+* sysadm <1>:                            Cfexecd reference.   (line  43)
+* sysadm <2>:                            sysadm.              (line   6)
+* sysadm:                                control.             (line  66)
+* tidy <1>:                              tidy.                (line   6)
+* tidy:                                  actionsequence.      (line  35)
+* timezone:                              control.             (line  66)
+* touch:                                 touch.               (line   6)
+* truncate:                              disable.             (line  91)
+* type= <1>:                             Hard links.          (line   6)
+* type=:                                 disable.             (line  82)
+* underscoreclasses:                     Special variables.   (line 126)
+* unmount <1>:                           unmount.             (line   6)
+* unmount:                               actionsequence.      (line  35)
+* version=:                              packages.            (line  99)
+* Wildcards:                             tidy.                (line  59)
+* zeroes:                                broadcast.           (line  22)
+* zeros:                                 broadcast.           (line  22)
+
+
+File: cfengine-Reference.info,  Node: Concept Index,  Next: FAQ Index,  Prev: Variable Index,  Up: Top
+
+Concept Index
+*************
+
+ [index ]
+* Menu:
+
+* !:                                     Cfengine classes.    (line  98)
+* --dry-run option:                      shellcommands.       (line 102)
+* -D option:                             addclasses.          (line  20)
+* -l option:                             tidy.                (line  87)
+* -L option:                             Single links.        (line  22)
+* -l option:                             Syntax.              (line 154)
+* -T in cfrun.:                          cfrun.               (line  31)
+* -x option:                             cf.preconf bootstrap file.
+                                                              (line  74)
+* .cfdisabled:                           disable.             (line  43)
+* .cfengine.rm:                          tidy.                (line 184)
+* .cfnew files:                          copy.                (line  14)
+* .cfsaved files:                        Multiple Links.      (line  22)
+* .X11 directory:                        ignore.              (line  47)
+* /etc/host.conf:                        cf.preconf bootstrap file.
+                                                              (line  74)
+* /etc/hosts.equiv:                      disable.             (line  43)
+* /var/cfengine/output:                  Cfexecd reference.   (line  27)
+* <:                                     UserExists.          (line  10)
+* >:                                     UserExists.          (line  10)
+* Abort cfengine after cf.preconf:       cf.preconf bootstrap file.
+                                                              (line  79)
+* AbortClasses:                          AbortClasses.        (line  12)
+* Aborting cfagent:                      AbortClasses.        (line  12)
+* Absolute links:                        Single links.        (line  64)
+* Access control:                        access.              (line   6)
+* Access control and symlinks:           root=.               (line  19)
+* Access control by directory:           root=.               (line  19)
+* Access control lists:                  acl.                 (line   6)
+* ACL key:                               ACEs.                (line  11)
+* ACLs:                                  acl.                 (line   6)
+* action sequence:                       actionsequence.      (line   6)
+* Adding defined classes:                addclasses.          (line   6)
+* Adding new classes:                    cfrc resource file.  (line  39)
+* AFS:                                   nfstype.             (line  22)
+* Alerts:                                alerts.              (line   6)
+* allclasses file:                       Cfagent Runtime Options.
+                                                              (line 145)
+* allclasses variable:                   shellcommands.       (line 164)
+* AllowConnectionsFrom variable:         AllowConnectionsFrom.
+                                                              (line  16)
+* AllowUsers in cfservd:                 AllowUsers.          (line  25)
+* Andrew filesystem:                     nfstype.             (line  22)
+* AppendIfNoSuchLinesFromFile:           AppendIfNoSuchLinesFromFile.
+                                                              (line  11)
+* Array example:                         Setting variables with functions.
+                                                              (line 217)
+* Array from file:                       Setting variables with functions.
+                                                              (line 217)
+* Associative arrays.:                   Setting variables with functions.
+                                                              (line  40)
+* atime tidies:                          tidy.                (line 140)
+* Audit log:                             Auditing.            (line   6)
+* Auditing:                              Special variables.   (line  27)
+* AutoCreate:                            AutoCreate.          (line  12)
+* AutoExecInterval variable:             AutoExecInterval.    (line   6)
+* automounter:                           AutomountDirectResources.
+                                                              (line  11)
+* awk, editing:                          editfiles.           (line  10)
+* Backup:                                Backup in editfiles. (line  19)
+* Backup of files in copy:               copy.                (line 141)
+* BeginGroupIfDefined:                   BeginGroupIfDefined. (line  10)
+* BeginGroupIfFileExists:                BeginGroupIfFileExists.
+                                                              (line  12)
+* BeginGroupIfFileIsNewer:               BeginGroupIfFileIsNewer.
+                                                              (line  11)
+* BeginGroupIfNotDefined:                BeginGroupIfNotDefined.
+                                                              (line  10)
+* Binary servers and links <1>:          Link Children.       (line  10)
+* Binary servers and links:              Single links.        (line 110)
+* Binary servers, defining:              binservers.          (line   6)
+* Binary servers, priority <1>:          Single links.        (line 133)
+* Binary servers, priority:              binservers.          (line  39)
+* Binding to one interface only <1>:     BindToInterface in cfservd.
+                                                              (line  10)
+* Binding to one interface only:         BindToInterface in cfagent.
+                                                              (line  11)
+* Bootstrap file:                        cf.preconf bootstrap file.
+                                                              (line   6)
+* Broadcast address:                     broadcast.           (line   6)
+* Broadcasts to the cfengine service.:   cfrun.               (line  52)
+* Broken resolver:                       lastseen.            (line  10)
+* Built-in functions:                    Setting variables with functions.
+                                                              (line  23)
+* Caching of reverse lookups:            root=.               (line  25)
+* CatchAbort:                            CatchAbort.          (line   6)
+* cf.groups:                             cf.groups.           (line   6)
+* cf.main:                               cf.main.             (line   6)
+* cf.motd:                               cf.motd.             (line   6)
+* cf.preconf bootstrap file:             cf.preconf bootstrap file.
+                                                              (line   6)
+* cf.site <1>:                           cfservd.conf.        (line   6)
+* cf.site:                               cf.site.             (line   6)
+* cfagent.conf:                          cfagent.conf.        (line   6)
+* CFALLCLASSES <1>:                      shellcommands.       (line 164)
+* CFALLCLASSES:                          Special variables.   (line  16)
+* CFALLCLASSES in a file:                Cfagent Runtime Options.
+                                                              (line 145)
+* cfenvd and key entropy:                Cfkey.               (line  14)
+* cfexecd:                               Cfexecd reference.   (line  43)
+* cfrc resource file:                    cfrc resource file.  (line   6)
+* cfrun, limiting users on server:       AllowUsers.          (line  11)
+* cfrunCommand variable:                 cfrunCommand.        (line  12)
+* cfservd.conf file:                     Cfservd.conf and cfrun reference.
+                                                              (line  13)
+* cfservd.conf iteration:                Cfservd.conf and cfrun reference.
+                                                              (line  95)
+* Changing cfengine port:                Firewalls and NATs.  (line  32)
+* Checking for installed packages:       packages.            (line   6)
+* Checksum warning, turning off exclamation: exclamation.     (line  12)
+* ChecksumDatabase:                      ChecksumDatabase in cfagent.
+                                                              (line   8)
+* ChecksumDatabase variable:             ChecksumDatabase in cfservd.
+                                                              (line  15)
+* ChecksumPurge:                         ChecksumPurge.       (line   8)
+* Checksums:                             Checksums and change management.
+                                                              (line   6)
+* ChecksumUpdates:                       ChecksumUpdates.     (line   8)
+* CIDR:                                  groups.              (line  36)
+* Class data and scripts:                Special variables.   (line  16)
+* Class decided by shell command:        groups.              (line 102)
+* Class dependencies:                    groups.              (line  73)
+* Class information, passing to scripts: shellcommands.       (line 164)
+* classes <1>:                           groups.              (line  10)
+* classes <2>:                           classes.             (line   6)
+* classes:                               Cfengine classes.    (line   6)
+* Classes, adding and defining:          addclasses.          (line   6)
+* Classes, built-in functions:           Examples setting classes.
+                                                              (line  18)
+* Classes, compound:                     Cfengine classes.    (line  59)
+* Classes, defining and undefining:      Cfengine classes.    (line  96)
+* Classless IP addresses:                groups.              (line  36)
+* Comparing file objects:                Examples setting classes.
+                                                              (line  18)
+* Compound classes:                      Cfengine classes.    (line  59)
+* compress:                              tidy.                (line  42)
+* CompressCommand:                       CompressCommand.     (line  11)
+* Compression during tidy:               tidy.                (line  42)
+* Contacting specific hosts with cfrun:  cfrun.               (line 117)
+* control section:                       control.             (line   6)
+* Controlling the size of log files:     disable.             (line  88)
+* copy:                                  copy.                (line   6)
+* Copy, exact filetree images:           copy.                (line 345)
+* Copying files:                         copy.                (line   6)
+* Creating files:                        create.              (line   6)
+* ctime tidies:                          tidy.                (line 140)
+* DCE key:                               DFS ACLs.            (line   6)
+* Deadlock:                              cf.preconf bootstrap file.
+                                                              (line   6)
+* Deadlock zombie bug in restart:        processes.           (line 122)
+* Debian Package Database Queries:       packages.            (line 187)
+* Declaring classes:                     addinstallable.      (line   6)
+* Decrementing line pointer in editfiles: IncrementPointer.   (line  14)
+* Defining a binary server:              binservers.          (line   6)
+* Defining a home server:                homeservers.         (line   6)
+* Defining a mail server:                mailserver.          (line   6)
+* Defining a mountable:                  mountables.          (line   6)
+* Defining before use:                   addinstallable.      (line   6)
+* Defining classes <1>:                  classes.             (line   6)
+* Defining classes:                      addclasses.          (line   6)
+* Defining groups:                       groups.              (line   6)
+* DeleteNonOwnerMail:                    deletenonownerfiles. (line  14)
+* DeleteNonUserFiles:                    deletenonownerfiles. (line  14)
+* DeleteNonUserMail DeleteNonUserFiles:  deletenonuserfiles.  (line  13)
+* Deleting directories:                  tidy.                (line 150)
+* Deleting files:                        tidy.                (line   6)
+* Deleting stale links <1>:              tidy.                (line 100)
+* Deleting stale links:                  Syntax.              (line 164)
+* DenyBadClocks variable:                DenyBadClocks.       (line   9)
+* DenyConnectionsFrom variable:          DenyConnectionsFrom. (line  12)
+* Dependencies:                          groups.              (line  73)
+* Device boundaries:                     copy.                (line 178)
+* Device boundaries and files:           Recursion.           (line  15)
+* DFS:                                   nfstype.             (line  22)
+* DHCP <1>:                              DynamicAddresses.    (line  20)
+* DHCP:                                  actionsequence.      (line 127)
+* DHCP addresses:                        DynamicAddresses.    (line   8)
+* Directories, deleting:                 tidy.                (line 150)
+* Directories, hidden:                   fileextension.       (line  13)
+* Directories, making:                   directories.         (line   6)
+* Directory for cfengine modules:        moduledirectory.     (line   6)
+* Directory permissions:                 Directory permissions.
+                                                              (line   6)
+* Disabling file types:                  disable.             (line  82)
+* Disabling files:                       disable.             (line   6)
+* disks actions:                         disks.               (line   6)
+* DNS:                                   resolve.             (line   6)
+* domain:                                domain.              (line   6)
+* Domain name:                           netmask.             (line  14)
+* Dots in hostnames:                     Cfengine classes.    (line 159)
+* Double quotes:                         editfiles.           (line  63)
+* DryRun:                                dryrun.              (line   6)
+* Dual homed hosts:                      interfaces.          (line   6)
+* Dynamic addresses:                     DynamicAddresses.    (line  20)
+* DynamicAddresses variable:             DynamicAddresses.    (line  13)
+* Emergency abort:                       cf.preconf bootstrap file.
+                                                              (line  79)
+* Empty files:                           tidy.                (line 115)
+* Emptying old nameservers from /etc/resolv.conf: emptyresolvconf.
+                                                              (line   6)
+* Environment variable CFALLCLASSES:     Cfagent Runtime Options.
+                                                              (line 145)
+* Example configuration files:           Example configuration file.
+                                                              (line   6)
+* Exclamation marks, turning off:        exclamation.         (line  12)
+* Excluding classes:                     addclasses.          (line  30)
+* Excluding files from a file sweep:     Syntax.              (line 141)
+* ExpandVariables:                       ExpandVariables.     (line   9)
+* failover:                              copy.                (line 257)
+* Field separator in editfiles:          SplitOn.             (line  13)
+* File images (copy):                    copy.                (line   6)
+* File management:                       files.               (line   6)
+* File sizes, specifying:                tidy.                (line 115)
+* File tree images:                      copy.                (line 345)
+* File types:                            Examples setting classes.
+                                                              (line  18)
+* Files, breaking up into several:       import.              (line   6)
+* Files, checking permissions:           files.               (line   6)
+* Files, home wildcard:                  home directive.      (line   6)
+* Files, importing:                      import.              (line   6)
+* Files, ownership:                      Owner and group wildcards.
+                                                              (line   6)
+* Files, recursion:                      Recursion.           (line   6)
+* Files, setting owner:                  files.               (line   6)
+* Files, syntax:                         Syntax.              (line   6)
+* Force copying:                         copy example.        (line  39)
+* FreeBSD Package Database Queries:      packages.            (line 193)
+* freespace=:                            disks.               (line  57)
+* FriendStatus:                          alerts.              (line 115)
+* Full disk warnings:                    disks.               (line  57)
+* Fully qualified names:                 Cfengine classes.    (line 159)
+* Functions, built-in:                   Setting variables with functions.
+                                                              (line  23)
+* Gaming stratgies:                      strategies.          (line   6)
+* Gentoo Package Database Queries:       packages.            (line 155)
+* Group dependencies:                    groups.              (line  73)
+* Group field, editing:                  SplitOn.             (line  13)
+* groups <1>:                            groups.              (line  10)
+* groups:                                classes.             (line   6)
+* Groups, defining:                      groups.              (line   6)
+* Hanging processes:                     lastseen.            (line  10)
+* Hard class name collision:             Special variables.   (line 126)
+* Hardlinks:                             Hard links.          (line   6)
+* Hashes:                                Checksums and change management.
+                                                              (line   6)
+* Hashes of files <1>:                   Syntax.              (line 196)
+* Hashes of files:                       ChecksumDatabase in cfagent.
+                                                              (line   8)
+* home directive:                        home directive.      (line   6)
+* Home directories, creating:            directories.         (line  56)
+* Home path:                             homepattern.         (line   6)
+* Home servers, defining:                homeservers.         (line   6)
+* home wildcard:                         Syntax.              (line  64)
+* Homepattern variable.:                 mountables.          (line  35)
+* Host name gets truncated:              Cfengine classes.    (line 159)
+* Hostname collision:                    Special variables.   (line 126)
+* HostnameKeys:                          Firewalls and NATs.  (line  28)
+* hostnamekeys:                          cfrun.               (line  80)
+* Hung machine:                          cf.preconf bootstrap file.
+                                                              (line   6)
+* ignore command:                        ignore.              (line  18)
+* Import files, variables in:            import.              (line  33)
+* Importing files:                       import.              (line   6)
+* include in cfrun:                      cfrun.               (line  80)
+* Incrementing line pointer in editfiles: IncrementPointer.   (line  14)
+* Interface classes:                     IgnoreInterfaceRegex.
+                                                              (line  12)
+* Interface name, redefining by class:   interfacename.       (line   6)
+* InterfaceName:                         interfacename.       (line   6)
+* Internal classes, switching off:       Cfagent Runtime Options.
+                                                              (line  72)
+* Internet address:                      netmask.             (line  14)
+* IP address:                            netmask.             (line  14)
+* IPV6 and DHCP:                         DynamicAddresses.    (line  29)
+* IsGreatThan:                           UserExists.          (line  10)
+* IsLessThan:                            UserExists.          (line  10)
+* Iterating over lists in shellcommands: shellcommands.       (line 184)
+* Iteration in server rules:             Cfservd.conf and cfrun reference.
+                                                              (line  95)
+* Iteration over lists <1>:              split.               (line  15)
+* Iteration over lists:                  Iteration over lists.
+                                                              (line  89)
+* Iteration over lists (editfiles):      EditSplit.           (line  14)
+* Key entropy and cfenvd:                Cfkey.               (line  14)
+* Key security of users:                 AllowUsers.          (line  11)
+* Key, ACL:                              DFS ACLs.            (line   6)
+* Kilobyte, filesize unit:               tidy.                (line 115)
+* Last Seen database <1>:                lastseenexpireafter. (line  12)
+* Last Seen database:                    alerts.              (line 115)
+* LastNode literal:                      directories.         (line  56)
+* LastSeen:                              lastseen.            (line  10)
+* Linkchildren <1>:                      Link Children.       (line   6)
+* Linkchildren:                          Files linkchildren.  (line   6)
+* Links and binary servers <1>:          Link Children.       (line  10)
+* Links and binary servers:              Single links.        (line 110)
+* Links in access control:               root=.               (line  19)
+* Links, absolute:                       Single links.        (line  64)
+* Links, deleting stale <1>:             tidy.                (line 100)
+* Links, deleting stale:                 Syntax.              (line 164)
+* Links, forcing for non-existent files: Single links.        (line  81)
+* Links, making:                         links.               (line   6)
+* Links, multiple:                       Multiple Links.      (line   6)
+* Links, removing dead:                  Single links.        (line  81)
+* Links, single:                         Single links.        (line   6)
+* Links, traversing in searches <1>:     tidy.                (line  87)
+* Links, traversing in searches:         Syntax.              (line 154)
+* Local disk space, make use of:         Link Children.       (line  34)
+* Log files, controlling the size of:    disable.             (line  88)
+* Logical NOT:                           Cfengine classes.    (line  98)
+* m4 functionality:                      ExpandVariables.     (line   9)
+* Mail from cfexecd:                     Cfexecd reference.   (line  84)
+* Mail server, defining:                 mailserver.          (line   6)
+* Mailhost:                              Smtpserver.          (line   8)
+* Mailing output:                        Cfexecd reference.   (line  43)
+* Making directories:                    directories.         (line   6)
+* Making links:                          links.               (line   6)
+* Making paths:                          directories.         (line   6)
+* Making use of local disk space:        Link Children.       (line  34)
+* MaxConnections variable:               MaxConnections.      (line   8)
+* Megabytes, filesize unit:              tidy.                (line 115)
+* Merging files.:                        AppendIfNoLineMatching.
+                                                              (line  25)
+* Message digests <1>:                   Syntax.              (line 196)
+* Message digests:                       ChecksumDatabase in cfagent.
+                                                              (line   8)
+* Methods:                               methods.             (line   6)
+* Methods, remote caution:               methods.             (line  26)
+* Miscellaneous mount operations:        miscmounts.          (line   6)
+* Module directory <1>:                  moduledirectory.     (line   6)
+* Module directory:                      PrepModule.          (line  11)
+* Modules executed immediately:          PrepModule.          (line  11)
+* Modules, user defined:                 actionsequence.      (line  79)
+* Monitoring other hosts:                alerts.              (line 115)
+* Mount paths:                           mountpattern.        (line   6)
+* Mountable resources, defining <1>:     mountables.          (line   6)
+* Mountable resources, defining:         homeservers.         (line  35)
+* Mounted filesystems:                   copy.                (line 178)
+* Mounting filesystems.:                 miscmounts.          (line   6)
+* mtime tidies:                          tidy.                (line 140)
+* Multihomed hosts <1>:                  BindToInterface in cfservd.
+                                                              (line  10)
+* Multihomed hosts:                      BindToInterface in cfagent.
+                                                              (line  11)
+* Multiple links:                        Multiple Links.      (line   6)
+* Name collision:                        Special variables.   (line 126)
+* NAT:                                   Firewalls and NATs.  (line  32)
+* Negating classes:                      actionsequence.      (line 183)
+* Negating entries from netgroups:       groups.              (line  60)
+* Netgroups:                             groups.              (line  40)
+* Netgroups, negating entries:           groups.              (line  60)
+* Netmask:                               netmask.             (line  14)
+* netmask:                               netmask.             (line   6)
+* Network Address Translation:           SkipIdentify.        (line  14)
+* Network address translator:            Firewalls and NATs.  (line  32)
+* Network Address Translators:           SkipVerify.          (line  19)
+* Network interfaces, several:           interfaces.          (line   6)
+* New systems, support for:              cfrc resource file.  (line  39)
+* nfs:                                   nfstype.             (line   6)
+* NFS filesystems and disk checking:     disks.               (line  75)
+* NFS mount model and automounter:       AutomountDirectResources.
+                                                              (line  11)
+* nfstype:                               nfstype.             (line   6)
+* NIS, netgroup support:                 groups.              (line  40)
+* no_default_route class:                defaultroute.        (line  41)
+* noabspath:                             shellcommands.       (line 110)
+* none in server:                        methods.             (line  95)
+* NOT operator:                          Cfengine classes.    (line  98)
+* NT, ACL:                               NT ACLs.             (line   6)
+* ones:                                  broadcast.           (line  22)
+* Operator ordering:                     Cfengine classes.    (line 161)
+* Output logs:                           Cfexecd reference.   (line  27)
+* Ownership of files:                    Owner and group wildcards.
+                                                              (line   6)
+* packages:                              packages.            (line   6)
+* Password file, editing:                SplitOn.             (line  13)
+* Path to home directories:              homepattern.         (line   6)
+* Path to mounted filesystems:           mountpattern.        (line   6)
+* Paths, making:                         directories.         (line   6)
+* Pattern matching in file sweeps:       Syntax.              (line 136)
+* pattern= and filtering:                tidy.                (line  59)
+* Peer to peer methods:                  Setting variables with functions.
+                                                              (line 161)
+* Peer watching (FriendStatus):          alerts.              (line 115)
+* Percentage disk space:                 disks.               (line  64)
+* Permissions, directories:              Directory permissions.
+                                                              (line   6)
+* Port, connecting to different:         Firewalls and NATs.  (line  32)
+* PrepModule:                            PrepModule.          (line  11)
+* Preserving file times in copy:         copy.                (line 171)
+* Previewing shellcommands:              shellcommands.       (line 102)
+* PrintFile:                             alerts.              (line 115)
+* Private modules:                       methods.             (line   6)
+* PRNG not seeded:                       Cfkey.               (line  18)
+* Processes, 0 to 3:                     processes.           (line  99)
+* Processes, checking existence of:      processes.           (line 191)
+* Processes, counting:                   processes.           (line 163)
+* Processes, signalling:                 processes.           (line 191)
+* Public keys:                           copy.                (line 269)
+* Purge, excluding files:                copy.                (line 201)
+* Quoted strings:                        editfiles.           (line  63)
+* Random numbers:                        Setting variables with functions.
+                                                              (line  23)
+* RandomInt() function:                  control.             (line  54)
+* Read array from file:                  Setting variables with functions.
+                                                              (line 217)
+* Read array from table:                 Setting variables with functions.
+                                                              (line 100)
+* ReadArray:                             Setting variables with functions.
+                                                              (line 217)
+* ReadFile:                              Setting variables with functions.
+                                                              (line  88)
+* ReadFile() function:                   control.             (line  54)
+* ReadTable:                             Setting variables with functions.
+                                                              (line 100)
+* Recursion in files:                    Recursion.           (line   6)
+* Redefinition of macros:                AllowRedefinitionOf. (line  19)
+* Relative links:                        Single links.        (line  64)
+* Removing directories:                  tidy.                (line 150)
+* Removing entries from netgroups:       groups.              (line  60)
+* Renaming files:                        disable.             (line   6)
+* Replacing file by link:                disable.             (line  82)
+* Repository filenames, changing:        repchar.             (line  14)
+* resolv.conf:                           resolve.             (line   6)
+* Resolver configuration:                resolve.             (line   6)
+* Resource file:                         cfrc resource file.  (line   6)
+* Restart zombie deadlock bug:           processes.           (line 122)
+* Restricting the size of binary files to be edited: editbinaryfilesize.
+                                                              (line   6)
+* Restricting the size of files to be edited: editfilesize.   (line   6)
+* Reverse lookup and SkipVerify:         root=.               (line  25)
+* rmdirs:                                tidy.                (line 150)
+* Rotating log files:                    disable.             (line  88)
+* RPM Database Queries:                  packages.            (line 123)
+* Running cfengine from a single master host: cfrun.          (line  95)
+* Running cfrun:                         cfrun.               (line  41)
+* scanarrivals=:                         disks.               (line  77)
+* scheduling:                            schedule.            (line   6)
+* Scripts and class information:         shellcommands.       (line 164)
+* Scripts, passing classes to:           Special variables.   (line  16)
+* Search patterns in files:              Syntax.              (line 136)
+* Searching for home directories:        homepattern.         (line  23)
+* Searching, advanced:                   filters.             (line   6)
+* Secure input:                          secureinput.         (line   6)
+* Security risk:                         SkipVerify.          (line  19)
+* Security, link races and travlinks:    tidy.                (line 138)
+* sed, editing:                          editfiles.           (line  10)
+* Selecting files in searches:           filters.             (line   6)
+* SelectPartitionGroup:                  Setting variables with functions.
+                                                              (line 161)
+* SelectPartitionLeader:                 Setting variables with functions.
+                                                              (line 179)
+* Sensible file sizes:                   sensiblesize.        (line   6)
+* Sensible limits on files in a directory: sensiblecount.     (line   6)
+* SetState():                            alerts.              (line  32)
+* Setting classes based on non-local disks: disks.            (line  75)
+* Setting uid on restarted processes:    processes.           (line 124)
+* Several files:                         import.              (line   6)
+* Shell command to decide class:         groups.              (line 102)
+* ShowState():                           alerts.              (line  32)
+* Single links:                          Single links.        (line   6)
+* Single quotes:                         editfiles.           (line  63)
+* site:                                  site.                (line   6)
+* size field in disable:                 disable.             (line 137)
+* SkipIdentify:                          SkipIdentify.        (line  14)
+* SkipVerify and public-private keys:    root=.               (line  25)
+* smtpserver:                            Smtpserver.          (line   8)
+* Spam suppression:                      Cfexecd reference.   (line  84)
+* Specifying file sizes:                 tidy.                (line 115)
+* SplayTime in cfrun:                    cfrun.               (line  29)
+* split <1>:                             split.               (line  15)
+* split:                                 Iteration over lists.
+                                                              (line  89)
+* Split in editfiles:                    EditSplit.           (line  14)
+* SplitOn:                               SplitOn.             (line  13)
+* SpoolDirectories:                      spooldirectories.    (line   6)
+* Strategy, random:                      strategies.          (line   6)
+* Subnet mask:                           netmask.             (line  14)
+* Sun Package Database Queries:          packages.            (line 190)
+* Support for new systems:               cfrc resource file.  (line  39)
+* suspiciousnames:                       suspiciousnames.     (line   6)
+* Switching off backup in copy:          copy.                (line 141)
+* Switching off built-in classes:        Cfagent Runtime Options.
+                                                              (line  72)
+* Symbolic links in admit:               root=.               (line  19)
+* Symbolic links, absolute:              Single links.        (line  64)
+* Symbolic links, relative:              Single links.        (line  64)
+* sysadm:                                sysadm.              (line   6)
+* SysLog():                              alerts.              (line  32)
+* Templates:                             ExpandVariables.     (line   9)
+* Testing files:                         Examples setting classes.
+                                                              (line  18)
+* Tidy by ctime, mtime, atime:           tidy.                (line 140)
+* Tidy log files for users:              LogTidyHomeFiles.    (line  12)
+* Tidying empty files:                   tidy.                (line 115)
+* Tidying files:                         tidy.                (line   6)
+* timeout= in shellcommands:             shellcommands.       (line  52)
+* Timeouts during iterations:            shellcommands.       (line 186)
+* Too many open files error:             Too many open files. (line   6)
+* Touching files:                        touch.               (line   6)
+* travlinks:                             tidy.                (line 138)
+* Tree copying, exact:                   copy.                (line 345)
+* Tripwire functionality <1>:            Syntax.              (line 196)
+* Tripwire functionality:                ChecksumDatabase in cfagent.
+                                                              (line   8)
+* Truncating log files:                  disable.             (line  88)
+* Trust, key exchange with cfrun:        cfrun.               (line  31)
+* Trusted hosts:                         copy.                (line 269)
+* TrustKeysFrom variable:                TrustKeysFrom.       (line  18)
+* umask <1>:                             shellcommands.       (line  40)
+* umask <2>:                             processes.           (line  46)
+* umask:                                 Umask.               (line   9)
+* underscoreclasses:                     Special variables.   (line 126)
+* Unmounting filesystems:                unmount.             (line   6)
+* UnsetState():                          alerts.              (line  32)
+* update.conf:                           Work directory.      (line  32)
+* Variables in import files:             import.              (line  33)
+* Variables, setting to result of a shell command: Setting variables with functions.
+                                                              (line  11)
+* Version control:                       Special variables.   (line  27)
+* Virtual interfaces:                    IgnoreInterfaceRegex.
+                                                              (line  12)
+* Warning about full disks:              disks.               (line  57)
+* Warning remote methods:                methods.             (line  26)
+* Wildcard home:                         Syntax.              (line  64)
+* Wildcards in homepattern:              homepattern.         (line  23)
+* WWW server logs:                       disable.             (line 117)
+* xdev <1>:                              tidy.                (line 156)
+* xdev <2>:                              Syntax.              (line 200)
+* xdev:                                  copy.                (line 214)
+* xdev (File system boundaries):         Recursion.           (line  15)
+* zeros:                                 broadcast.           (line  22)
+
+
+File: cfengine-Reference.info,  Node: FAQ Index,  Prev: Concept Index,  Up: Top
+
+FAQ Index
+*********
+
+ [index ]
+* Menu:
+
+* Absolute path and shellcommands:       shellcommands.       (line 110)
+* Brackets (parentheses) in classes.:    Cfengine classes.    (line 161)
+* Can't stat error when remote copying:  DenyBadClocks.       (line   9)
+* Changing repository name conventions:  repchar.             (line  14)
+* Checksums take too long to compute.:   ChecksumDatabase in cfservd.
+                                                              (line  15)
+* copy doesn't always copy files:        copy.                (line 161)
+* ctime copy doesn't always copy files:  copy.                (line 161)
+* Denial of service attacks:             AllowConnectionsFrom.
+                                                              (line  16)
+* Hanging commands, timeouts:            shellcommands.       (line  52)
+* Hanging connections attacks:           AllowConnectionsFrom.
+                                                              (line  16)
+* Hey! Cannot stat file error:           copy.                (line 252)
+* How can I avoid hanging shellcommands?: shellcommands.      (line  52)
+* How can I set a timeout for a shell command?: shellcommands.
+                                                              (line  52)
+* How to create files while editing:     AutoCreate.          (line  12)
+* Iterating over lists <1>:              split.               (line  15)
+* Iterating over lists:                  Iteration over lists.
+                                                              (line  89)
+* locahost in copy:                      copy.                (line 252)
+* MD5 checksums take a long time to compute.: ChecksumDatabase in cfservd.
+                                                              (line  15)
+* Parentheses in classes.:               Cfengine classes.    (line 161)
+* Remote copy problems, can't stat:      copy.                (line 252)
+* Shellcommands must start with absolute path: shellcommands. (line 110)
+* Too many open files error:             Too many open files. (line   6)
+
+

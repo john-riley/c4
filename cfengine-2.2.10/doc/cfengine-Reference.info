@@ -1,0 +1,377 @@
+This is cfengine-Reference.info, produced by makeinfo version 4.12 from
+cfengine-Reference.texinfo.
+
+INFO-DIR-SECTION System Utilities
+START-INFO-DIR-ENTRY
+* cfengine Reference: (cfengine-Reference.info).
+                        Cfengine is a language based tool specifically
+                        designed for configuring and maintaining BSD
+                        and System-5-like operating systems attached
+                        to a TCP/IP network.
+END-INFO-DIR-ENTRY
+
+
+Indirect:
+cfengine-Reference.info-1: 479
+cfengine-Reference.info-2: 297727
+
+Tag Table:
+(Indirect)
+Node: Top479
+Node: Reference introduction1004
+Node: Installation1742
+Node: Work directory2667
+Node: Hard classes4538
+Node: Filenames and paths6216
+Node: Debugging with signals7684
+Node: Cfkey8531
+Node: Cfshow9533
+Node: Cfagent reference13262
+Node: Cfagent intro14026
+Node: The file cfagent.conf15305
+Node: Cfagent Runtime Options15688
+Node: Variable expansion and contexts21902
+Node: Setting variables with functions23344
+Node: Special variables30946
+Node: Iteration over lists36380
+Node: Cfengine classes38896
+Node: Setting classes with special functions45566
+Node: AccessedBefore46050
+Node: ChangedBefore46340
+Node: ClassMatch46621
+Node: FileExists47073
+Node: GroupExists47308
+Node: HostRange47554
+Node: IsDefined47965
+Node: IsDir48280
+Node: IsLink48457
+Node: IsPlain48641
+Node: IsNewerThan48831
+Node: IPRange49070
+Node: PrepModule49301
+Node: Regcmp49829
+Node: ReturnsZero50079
+Node: ReturnsZeroShell50381
+Node: Strcmp50701
+Node: UserExists50906
+Node: IsGreaterThan51218
+Node: IsLessThan51594
+Node: Examples setting classes52253
+Node: acl52840
+Node: ACEs55256
+Node: Solaris ACLs57759
+Node: DFS ACLs58430
+Node: NT ACLs60114
+Node: Windows ACL Example62398
+Node: Posix ACL Example63225
+Node: alerts64658
+Node: binservers68644
+Node: broadcast70423
+Node: control71538
+Node: AbortClasses75304
+Node: access75987
+Node: actionsequence76557
+Node: addclasses84646
+Node: addinstallable86232
+Node: AllowRedefinitionOf87733
+Node: Auditing88238
+Node: AutoDefine88921
+Node: BinaryPaddingChar89539
+Node: BindToInterface in cfagent89990
+Node: ChecksumDatabase in cfagent90553
+Node: ChecksumPurge91026
+Node: ChecksumUpdates91717
+Node: CompressCommand92531
+Node: childlibpath92826
+Node: copylinks93490
+Node: defaultcopytype94205
+Node: defaultpkgmgr94595
+Node: deletenonuserfiles95127
+Node: deletenonownerfiles95645
+Node: deletenonusermail96162
+Node: deletenonownermail96514
+Node: domain96849
+Node: dpkginstallcommand97738
+Node: dryrun98291
+Node: editbinaryfilesize98675
+Node: editfilesize99235
+Node: emptyresolvconf100123
+Node: exclamation100478
+Node: excludecopy100823
+Node: excludelinks101489
+Node: ExpireAfter102159
+Node: FreeBSDInstallCommand103359
+Node: FreeBSDRemoveCommand103932
+Node: FullEncryption104523
+Node: homepattern105081
+Node: HostnameKeys in cfagent106713
+Node: IfElapsed in cfagent107521
+Node: IgnoreFriendRegex108584
+Node: IgnoreInterfaceRegex108917
+Node: Inform109334
+Node: interfacename109861
+Node: fileextension110611
+Node: lastseen111092
+Node: lastseenexpireafter111616
+Node: linkcopies111992
+Node: LogDirectory112672
+Node: LogTidyHomeFiles113021
+Node: moduledirectory113346
+Node: mountpattern113971
+Node: netmask115311
+Node: nonalphanumfiles118981
+Node: nfstype119571
+Node: PortageInstallCommand120652
+Node: repchar121443
+Node: repository122048
+Node: RPMcommand122564
+Node: rpminstallcommand122878
+Node: schedule123910
+Node: secureinput125008
+Node: sensiblecount125333
+Node: sensiblesize125912
+Node: showactions126566
+Node: singlecopy127012
+Node: site128795
+Node: SkipIdentify129492
+Node: Smtpserver130004
+Node: SplayTime130255
+Node: split130600
+Node: spooldirectories131162
+Node: suninstallcommand131733
+Node: suspiciousnames132305
+Node: sysadm132794
+Node: Syslog133411
+Node: SyslogFacility133740
+Node: timezone134163
+Node: TimeOut135297
+Node: Verbose135825
+Node: Warnings136541
+Node: warnnonuserfiles136989
+Node: warnnonownerfiles137332
+Node: warnnonusermail137854
+Node: warnnonownermail138200
+Node: classes138516
+Node: copy138726
+Ref: dest141925
+Ref: copyaction143684
+Ref: force143990
+Ref: forceipv4144109
+Ref: forcedirs144336
+Ref: copybackup144618
+Ref: copyrepository144883
+Ref: stealth145316
+Ref: checkroot145850
+Ref: timestamps146071
+Ref: recurse146277
+Ref: symlink146617
+Ref: copyignore146920
+Ref: copyinclude147149
+Ref: copyexclude147707
+Ref: copyxdev148038
+Ref: copytype148177
+Ref: findertype148772
+Ref: server149547
+Ref: failover150101
+Ref: oldserver150261
+Ref: trustkey150403
+Ref: encrypt150807
+Ref: verify151548
+Ref: size151768
+Ref: linktype152554
+Ref: typecheck153241
+Ref: copydefine153547
+Ref: purge153985
+Node: copy example155235
+Node: hard links in copy156665
+Node: Too many open files158667
+Node: defaultroute159395
+Node: disks160323
+Node: directories163393
+Node: disable165337
+Node: editfiles170630
+Node: AbortAtLineMatching178579
+Node: Append179457
+Node: AppendIfNoLineMatching179824
+Node: AppendIfNoSuchLine180558
+Node: AppendIfNoSuchLinesFromFile180915
+Node: AppendToLineIfNotContains181390
+Node: Audit181837
+Node: AutoCreate182162
+Node: AutomountDirectResources182791
+Node: Backup in editfiles183644
+Node: BeginGroupIfDefined184334
+Node: BeginGroupIfNotDefined184694
+Node: BeginGroupIfFileExists185070
+Node: BeginGroupIfFileIsNewer185563
+Node: BeginGroupIfLineContaining185975
+Node: BeginGroupIfLineMatching186389
+Node: BeginGroupIfMatch186799
+Node: BeginGroupIfNoLineContaining187187
+Node: BeginGroupIfNoLineMatching187613
+Node: BeginGroupIfNoMatch188042
+Node: BeginGroupIfNoSuchLine188440
+Node: BreakIfLineMatches188841
+Node: CatchAbort189172
+Node: CommentLinesMatching189827
+Node: CommentLinesStarting190224
+Node: CommentNLines190617
+Node: CommentToLineMatching191241
+Node: DefineClasses191684
+Node: DefineInGroup192001
+Node: DeleteLinesAfterThisMatching193347
+Node: DeleteLinesContaining193689
+Node: DeleteLinesMatching194092
+Node: DeleteLinesStarting194495
+Node: DeleteLinesNotContaining194892
+Node: DeleteLinesNotMatchingFileItems195261
+Node: DeleteLinesNotStartingFileItems195648
+Node: DeleteNLines196014
+Node: DeleteToLineMatching196448
+Node: EditMode (binary)196927
+Node: EditSplit197248
+Node: EmptyEntireFilePlease198088
+Node: ElseDefineClasses198314
+Node: EndGroup198510
+Node: EndLoop198700
+Node: ExpandVariables198879
+Node: ExpireAfter editfiles199270
+Node: Filter199473
+Node: FixEndOfLine199686
+Node: ForEachLineIn200130
+Node: GotoLastLine200542
+Node: HashCommentLinesContaining200774
+Node: HashCommentLinesMatching201099
+Node: HashCommentLinesStarting201446
+Node: IfElapsed (editing)201772
+Node: IncrementPointer201968
+Node: Inform (editing)202598
+Node: InsertFile203080
+Node: InsertLine203682
+Node: LocateLineMatching204197
+Node: PercentCommentLinesContaining204714
+Node: PercentCommentLinesMatching205063
+Node: PercentCommentLinesStarting205421
+Node: Prepend (editing)205765
+Node: PrependIfNoLineMatching206160
+Node: PrependIfNoSuchLine206571
+Node: Recurse (editing)206927
+Node: ReplaceLineWith207171
+Node: ReplaceAll With207527
+Node: ReplaceFirst208477
+Node: ReplaceLinesMatchingField209138
+Node: Repository209890
+Node: ResetSearch210325
+Node: RunScript210622
+Node: RunScriptIfLineMatching211388
+Node: RunScriptIfNoLineMatching211950
+Node: SetCommentStart212519
+Node: SetCommentEnd212929
+Node: SetLine213386
+Node: SetScript213665
+Node: SlashCommentLinesContaining213927
+Node: SlashCommentLinesMatching214258
+Node: SlashCommentLinesStarting214616
+Node: SplitOn214940
+Node: SysLog215445
+Node: Umask215702
+Node: UnCommentLinesContaining215923
+Node: UnCommentLinesMatching216333
+Node: UnCommentsNLines216742
+Node: UnCommentToLineMatching217415
+Node: UnsetAbort217765
+Node: UseShell218004
+Node: WarnIfFileMissing218435
+Node: WarnIfLineContaining218719
+Node: WarnIfLineMatching219050
+Node: WarnIfLineStarting219370
+Node: WarnIfNoLineContaining219694
+Node: WarnIfNoLineMatching220031
+Node: WarnIfNoLineStarting220364
+Node: WarnIfNoSuchLine220698
+Node: Editfiles on Binary Files220988
+Node: files222513
+Node: Syntax223014
+Node: Recursion232916
+Node: Directory permissions233714
+Node: Checksums and change management234534
+Node: home directive235878
+Node: Owner and group wildcards237059
+Node: Files linkchildren237530
+Node: touch238019
+Node: create238395
+Node: filters238751
+Node: Complete filter examples244403
+Node: groups245936
+Node: homeservers250149
+Node: ignore252413
+Node: import254007
+Node: interfaces255058
+Node: links255791
+Node: Single links257251
+Node: Multiple Links263032
+Node: Link Children264172
+Node: Relative and absolute links267340
+Node: Hard links268464
+Node: mailserver269771
+Node: methods270935
+Node: localhost examples276060
+Node: remotehost examples281969
+Node: miscmounts284175
+Node: mountables285449
+Node: processes286978
+Node: packages297727
+Node: rename312956
+Node: required313158
+Node: resolve313337
+Node: scli315118
+Node: shellcommands317139
+Node: strategies323522
+Node: tidy324834
+Node: unmount333498
+Node: Cfservd.conf and cfrun reference334857
+Node: cfservd control337770
+Node: IP address ranges338398
+Node: AllowConnectionsFrom339363
+Node: AllowMultipleConnectionsFrom340058
+Node: AllowUsers340867
+Node: AutoExecCommand341931
+Node: AutoExecInterval342154
+Node: BindToInterface in cfservd342400
+Node: ChecksumDatabase in cfservd342965
+Node: cfrunCommand343750
+Node: DenyBadClocks344210
+Node: DenyConnectionsFrom344652
+Node: cfservd HostnameKeys345028
+Node: cfservd IfElapsed345734
+Node: LogAllConnections346179
+Node: LogEncryptedTransfers346642
+Node: MaxConnections346966
+Node: TrustKeysFrom347310
+Node: DynamicAddresses348056
+Node: admit grant and deny349408
+Node: root=349648
+Node: encrypt=350990
+Node: SkipVerify351352
+Node: cfrun352127
+Node: Firewalls and NATs357107
+Node: Cfexecd reference358331
+Node: Problem solving361760
+Node: cf.preconf bootstrap file361988
+Node: cfrc resource file364254
+Node: Example configuration file367129
+Node: cfagent.conf367607
+Node: cf.groups368693
+Node: cf.main370140
+Node: cf.site375491
+Node: cf.motd386458
+Node: cf.users387512
+Node: cf.solaris391147
+Node: cf.linux396654
+Node: cf.freebsd398874
+Node: cfservd.conf400594
+Node: Variable Index401719
+Node: Concept Index418373
+Node: FAQ Index457077
+
+End Tag Table
